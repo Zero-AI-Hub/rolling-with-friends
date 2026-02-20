@@ -59,13 +59,19 @@
 
     <script>
         // --- Player Page Logic ---
-        const params = new URLSearchParams(window.location.search);
-        const roomName = params.get('room');
-        const myNick = params.get('nick') || 'Player';
-        const myAvatar = params.get('avatar') || 'builtin:0';
+        // Read session data from localStorage instead of URL params
+        const session = JSON.parse(localStorage.getItem('dice-online-session') || '{}');
+        const roomName = session.room;
+        const myNick = session.nick || 'Player';
+        const myAvatar = session.avatar || 'builtin:0';
 
         if (!roomName) {
             window.location.href = 'index.html';
+        }
+
+        // Clean URL (remove any leftover params)
+        if (window.location.search) {
+            history.replaceState(null, '', window.location.pathname);
         }
 
         // UI references
@@ -90,7 +96,7 @@
             history: [],
         };
         let myPeerId = null;
-        let autoclear = false;
+        let autoclear = true; // Default: replace rolls
         let playerList = []; // [{id, nick}] for targeting
 
         // --- Connection ---
@@ -152,6 +158,9 @@
                     break;
                 case Protocol.MSG.AVATAR_UPDATE:
                     handleAvatarUpdate(msg);
+                    break;
+                case Protocol.MSG.NICK_TAKEN:
+                    handleNickTaken(msg);
                     break;
                 default:
                     console.warn('[Player] Unknown message:', msg.type);
@@ -215,9 +224,8 @@
         }
 
         function handlePlayerLeft(msg) {
-            if (localState.players[msg.playerId]) {
-                localState.players[msg.playerId].connected = false;
-            }
+            // Remove player entirely (their spot is cleared)
+            delete localState.players[msg.playerId];
             renderAll();
         }
 
@@ -270,6 +278,11 @@
                 localState.players[msg.playerId].avatarData = msg.avatarData;
             }
             renderAll();
+        }
+
+        function handleNickTaken(msg) {
+            alert(msg.message || `The nickname "${msg.nick}" is already taken. Choose a different one.`);
+            window.location.href = 'index.html';
         }
 
         // --- Player Actions ---
@@ -335,8 +348,14 @@
         }
 
         // --- UI Setup ---
+        const panelToolbar = document.createElement('div');
+        panelToolbar.className = 'panel-toolbar';
+
         const historyToggle = HistoryPanel.createToggleButton(historyPanelEl);
-        document.body.appendChild(historyToggle);
+        panelToolbar.appendChild(historyToggle);
+
+        // Insert toolbar into header actions
+        document.querySelector('.game-header-actions').prepend(panelToolbar);
 
         // Sound
         soundToggle.addEventListener('click', () => {

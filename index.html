@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,6 +8,7 @@
     <title>Dice Online — Roll Together</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
+
 <body>
     <div class="lobby-container">
         <h1 class="lobby-title">🎲 Dice Online</h1>
@@ -93,12 +95,13 @@
             }
 
             const room = sanitizeRoomName(roomRaw);
-            const params = new URLSearchParams({
+            localStorage.setItem('dice-online-session', JSON.stringify({
                 room,
                 nick,
                 avatar: dmAvatar,
-            });
-            window.location.href = `dm.html?${params.toString()}`;
+                role: 'dm',
+            }));
+            window.location.href = 'dm.html';
         });
 
         // Join Room
@@ -118,12 +121,13 @@
             }
 
             const room = sanitizeRoomName(roomRaw);
-            const params = new URLSearchParams({
+            localStorage.setItem('dice-online-session', JSON.stringify({
                 room,
                 nick,
                 avatar: playerAvatar,
-            });
-            window.location.href = `player.html?${params.toString()}`;
+                role: 'player',
+            }));
+            window.location.href = 'player.html';
         });
 
         // Allow Enter key to submit
@@ -139,4 +143,5 @@
         });
     </script>
 </body>
+
 </html>

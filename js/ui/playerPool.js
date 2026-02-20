@@ -21,6 +21,7 @@ const PlayerPool = (() => {
 
         // DM card
         const dmCard = createPlayerCard({
+            peerId: 'dm',
             nick: state.dmNick,
             avatarData: state.dmAvatar,
             table: state.dmTable || [],

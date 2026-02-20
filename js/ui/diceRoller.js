@@ -161,26 +161,37 @@ const DiceRoller = (() => {
         controls.appendChild(visGroup);
         controls.appendChild(targetGroup);
 
-        // Autoclear toggle
-        const autoclearGroup = document.createElement('div');
-        autoclearGroup.className = 'autoclear-group';
+        // "Keep previous rolls" toggle (inverted autoclear)
+        const keepGroup = document.createElement('div');
+        keepGroup.className = 'keep-rolls-group';
 
-        const autoclearLabel = document.createElement('label');
-        autoclearLabel.className = 'autoclear-label';
+        const keepLabel = document.createElement('label');
+        keepLabel.className = 'toggle-switch-label';
 
-        const autoclearCb = document.createElement('input');
-        autoclearCb.type = 'checkbox';
-        autoclearCb.id = 'autoclear-toggle';
-        autoclearCb.checked = options.autoclear || false;
+        const keepCb = document.createElement('input');
+        keepCb.type = 'checkbox';
+        keepCb.id = 'keep-rolls-toggle';
+        keepCb.className = 'toggle-switch-input';
+        // autoclear ON means "don't keep" = unchecked
+        keepCb.checked = !(options.autoclear === undefined ? true : options.autoclear);
 
-        autoclearCb.addEventListener('change', () => {
-            if (options.onAutoclearChange) options.onAutoclearChange(autoclearCb.checked);
+        const slider = document.createElement('span');
+        slider.className = 'toggle-switch-slider';
+
+        keepCb.addEventListener('change', () => {
+            // checked = keep rolls (autoclear OFF), unchecked = replace (autoclear ON)
+            if (options.onAutoclearChange) options.onAutoclearChange(!keepCb.checked);
         });
 
-        autoclearLabel.appendChild(autoclearCb);
-        autoclearLabel.appendChild(document.createTextNode(' Autoclear table'));
-        autoclearGroup.appendChild(autoclearLabel);
-        controls.appendChild(autoclearGroup);
+        const keepText = document.createElement('span');
+        keepText.className = 'toggle-switch-text';
+        keepText.textContent = 'Keep previous rolls';
+
+        keepLabel.appendChild(keepCb);
+        keepLabel.appendChild(slider);
+        keepLabel.appendChild(keepText);
+        keepGroup.appendChild(keepLabel);
+        controls.appendChild(keepGroup);
 
         // Roll button
         const rollBtn = document.createElement('button');

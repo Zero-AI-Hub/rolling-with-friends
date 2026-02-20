@@ -26,7 +26,7 @@
     --color-danger: #e74c3c;
     --color-warning: #f39c12;
     --color-info: #3498db;
-    
+
     --critical-hit: #4caf50;
     --critical-hit-glow: rgba(76, 175, 80, 0.5);
     --critical-fail: #e74c3c;
@@ -64,7 +64,9 @@
 }
 
 /* --- Base Reset & Global --- */
-*, *::before, *::after {
+*,
+*::before,
+*::after {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
@@ -88,8 +90,11 @@ body {
 body::before {
     content: '';
     position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: 
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background:
         radial-gradient(ellipse at 20% 50%, rgba(201, 168, 76, 0.04) 0%, transparent 50%),
         radial-gradient(ellipse at 80% 20%, rgba(100, 60, 200, 0.04) 0%, transparent 50%),
         radial-gradient(ellipse at 50% 80%, rgba(200, 50, 50, 0.03) 0%, transparent 50%);
@@ -97,13 +102,27 @@ body::before {
     z-index: 0;
 }
 
-a { color: var(--accent-primary); text-decoration: none; }
-a:hover { color: var(--accent-secondary); }
+a {
+    color: var(--accent-primary);
+    text-decoration: none;
+}
+
+a:hover {
+    color: var(--accent-secondary);
+}
 
 /* --- Utilities --- */
-.hidden { display: none !important; }
-.text-center { text-align: center; }
-.text-muted { color: var(--text-muted); }
+.hidden {
+    display: none !important;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.text-muted {
+    color: var(--text-muted);
+}
 
 /* --- Buttons --- */
 .btn {
@@ -184,36 +203,48 @@ a:hover { color: var(--accent-secondary); }
 }
 
 @keyframes shake {
-    0%, 100% { transform: translateX(0); }
-    25% { transform: translateX(-5px); }
-    50% { transform: translateX(5px); }
-    75% { transform: translateX(-3px); }
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    25% {
+        transform: translateX(-5px);
+    }
+
+    50% {
+        transform: translateX(5px);
+    }
+
+    75% {
+        transform: translateX(-3px);
+    }
 }
 
 .btn-toggle-panel {
-    position: fixed;
     z-index: 100;
-    width: 48px;
-    height: 48px;
-    border-radius: var(--radius-round);
-    font-size: 1.3rem;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-sm);
+    font-size: 1.1rem;
     padding: 0;
-    box-shadow: var(--shadow-md);
+    box-shadow: none;
+    border: var(--border-subtle);
+    background: var(--bg-card);
 }
 
 .btn-toggle-panel.active {
     background: var(--accent-primary);
     color: #0d0d1a;
+    border-color: var(--accent-secondary);
 }
 
-.btn-history-toggle {
-    bottom: 20px;
-    right: 20px;
-}
-
-.btn-dm-toggle {
-    bottom: 20px;
-    right: 80px;
+/* Panel toolbar in header */
+.panel-toolbar {
+    display: flex;
+    gap: var(--space-xs);
+    align-items: center;
 }
 
 /* --- Inputs --- */
@@ -375,8 +406,14 @@ label {
     display: inline-block;
 }
 
-.status-dot.online { background: var(--color-success); box-shadow: 0 0 6px var(--color-success); }
-.status-dot.offline { background: var(--color-danger); }
+.status-dot.online {
+    background: var(--color-success);
+    box-shadow: 0 0 6px var(--color-success);
+}
+
+.status-dot.offline {
+    background: var(--color-danger);
+}
 
 .game-main {
     flex: 1;
@@ -542,13 +579,27 @@ label {
 }
 
 @keyframes pulse-hit {
-    0%, 100% { box-shadow: 0 0 8px var(--critical-hit-glow); }
-    50% { box-shadow: 0 0 20px var(--critical-hit-glow); }
+
+    0%,
+    100% {
+        box-shadow: 0 0 8px var(--critical-hit-glow);
+    }
+
+    50% {
+        box-shadow: 0 0 20px var(--critical-hit-glow);
+    }
 }
 
 @keyframes pulse-fail {
-    0%, 100% { box-shadow: 0 0 8px var(--critical-fail-glow); }
-    50% { box-shadow: 0 0 20px var(--critical-fail-glow); }
+
+    0%,
+    100% {
+        box-shadow: 0 0 8px var(--critical-fail-glow);
+    }
+
+    50% {
+        box-shadow: 0 0 20px var(--critical-fail-glow);
+    }
 }
 
 .roll-total {
@@ -683,10 +734,7 @@ label {
     white-space: nowrap;
 }
 
-.visibility-select {
-    width: auto;
-    min-width: 150px;
-}
+/* visibility-select is styled in the Styled Visibility Select section below */
 
 .target-group {
     display: flex;
@@ -705,18 +753,104 @@ label {
     margin-bottom: 0;
 }
 
-.autoclear-group {
+.autoclear-group,
+.keep-rolls-group {
     display: flex;
     align-items: center;
 }
 
-.autoclear-label {
+/* --- Modern Toggle Switch --- */
+.toggle-switch-label {
     display: inline-flex;
     align-items: center;
-    gap: var(--space-xs);
+    gap: var(--space-sm);
     margin-bottom: 0;
     cursor: pointer;
     white-space: nowrap;
+    user-select: none;
+}
+
+.toggle-switch-input {
+    display: none;
+}
+
+.toggle-switch-slider {
+    position: relative;
+    width: 40px;
+    height: 22px;
+    background: var(--bg-input);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 11px;
+    transition: all var(--transition-fast);
+    flex-shrink: 0;
+}
+
+.toggle-switch-slider::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    transition: all var(--transition-fast);
+}
+
+.toggle-switch-input:checked+.toggle-switch-slider {
+    background: var(--accent-primary);
+    border-color: var(--accent-secondary);
+}
+
+.toggle-switch-input:checked+.toggle-switch-slider::after {
+    left: 20px;
+    background: #0d0d1a;
+}
+
+.toggle-switch-text {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+/* --- Panel Close Button --- */
+.panel-close-btn {
+    background: none !important;
+    border: none !important;
+    color: var(--text-muted);
+    font-size: 1.1rem;
+    padding: 2px 6px !important;
+    min-width: auto;
+    margin-left: auto;
+}
+
+.panel-close-btn:hover {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.1) !important;
+    box-shadow: none;
+    transform: none;
+}
+
+/* --- Styled Visibility Select --- */
+.visibility-select {
+    width: auto;
+    min-width: 160px;
+    appearance: none;
+    -webkit-appearance: none;
+    background: var(--bg-input) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23a0a0b0' d='M2 4l4 4 4-4'/%3E%3C/svg%3E") no-repeat right 10px center;
+    padding-right: 30px;
+    border: var(--border-accent);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.visibility-select:hover {
+    border-color: var(--accent-primary);
+}
+
+.visibility-select:focus {
+    box-shadow: 0 0 8px var(--accent-glow);
 }
 
 /* --- Side Panels (History / DM) --- */
@@ -1065,10 +1199,6 @@ label {
 
     .side-panel {
         width: 280px;
-    }
-
-    .btn-dm-toggle {
-        right: 75px;
     }
 }
 

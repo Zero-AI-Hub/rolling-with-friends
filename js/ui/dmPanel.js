@@ -24,6 +24,19 @@ const DmPanel = (() => {
         const title = document.createElement('h3');
         title.textContent = '⚙️ Room Management';
         header.appendChild(title);
+
+        // Close button
+        const closeBtn = document.createElement('button');
+        closeBtn.type = 'button';
+        closeBtn.className = 'btn btn-small panel-close-btn';
+        closeBtn.textContent = '✕';
+        closeBtn.title = 'Close panel';
+        closeBtn.addEventListener('click', () => {
+            container.classList.remove('panel-open');
+            if (container._toggleBtn) container._toggleBtn.classList.remove('active');
+        });
+        header.appendChild(closeBtn);
+
         container.appendChild(header);
 
         // Room info
@@ -149,6 +162,9 @@ const DmPanel = (() => {
             panelElement.classList.toggle('panel-open');
             btn.classList.toggle('active');
         });
+
+        // Store reference so close buttons inside the panel can use it
+        panelElement._toggleBtn = btn;
 
         return btn;
     }

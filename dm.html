@@ -64,13 +64,19 @@
 
     <script>
         // --- DM Page Logic ---
-        const params = new URLSearchParams(window.location.search);
-        const roomName = params.get('room');
-        const dmNick = params.get('nick') || 'DM';
-        const dmAvatar = params.get('avatar') || 'builtin:0';
+        // Read session data from localStorage instead of URL params
+        const session = JSON.parse(localStorage.getItem('dice-online-session') || '{}');
+        const roomName = session.room;
+        const dmNick = session.nick || 'DM';
+        const dmAvatar = session.avatar || 'builtin:0';
 
         if (!roomName) {
             window.location.href = 'index.html';
+        }
+
+        // Clean URL (remove any leftover params)
+        if (window.location.search) {
+            history.replaceState(null, '', window.location.pathname);
         }
 
         // UI references
@@ -105,7 +111,7 @@
 
         // DM's own table for dice rolls
         if (!state.dmTable) state.dmTable = [];
-        let dmAutoclear = false;
+        let dmAutoclear = true; // Default: replace rolls
 
         // --- Connection ---
         const host = Connection.createHost(roomName, {
@@ -120,10 +126,16 @@
                 console.log('[DM] Awaiting player info from:', peerId);
             },
             onPlayerDisconnected: (peerId) => {
-                GameState.disconnectPlayer(state, peerId);
-                Storage.saveState(roomName, state);
-                broadcastPlayerList();
-                renderAll();
+                const player = state.players[peerId];
+                if (player) {
+                    console.log(`[DM] Player disconnected: ${player.nick}`);
+                    // Remove player entirely and broadcast
+                    GameState.removePlayer(state, peerId);
+                    Storage.saveState(roomName, state);
+                    host.broadcast(Protocol.createPlayerLeft(peerId, player.nick));
+                    broadcastPlayerList();
+                    renderAll();
+                }
             },
             onMessage: (peerId, msg) => {
                 handleMessage(peerId, msg);
@@ -159,6 +171,21 @@
         function handlePlayerInfo(peerId, msg) {
             const nick = msg.nick || 'Player';
             const avatarData = msg.avatarData;
+
+            // Enforce unique nicknames: reject if a connected player has the same nick
+            for (const [existingId, existingPlayer] of Object.entries(state.players)) {
+                if (existingPlayer.nick === nick && existingPlayer.connected && existingId !== peerId) {
+                    console.log(`[DM] Rejected player: nick "${nick}" already taken by ${existingId}`);
+                    host.sendTo(peerId, Protocol.createNickTaken(nick));
+                    return;
+                }
+            }
+            // Also check against DM nick
+            if (nick === dmNick) {
+                console.log(`[DM] Rejected player: nick "${nick}" is the DM's nick`);
+                host.sendTo(peerId, Protocol.createNickTaken(nick));
+                return;
+            }
 
             // Check if this is a reconnecting player
             const oldPeerId = GameState.reconnectPlayer(state, peerId, nick, avatarData);
@@ -375,12 +402,18 @@
 
         // --- UI Setup ---
 
-        // Toggle buttons
+        // Toggle buttons in a toolbar (not floating over content)
+        const panelToolbar = document.createElement('div');
+        panelToolbar.className = 'panel-toolbar';
+
         const historyToggle = HistoryPanel.createToggleButton(historyPanelEl);
-        document.body.appendChild(historyToggle);
+        panelToolbar.appendChild(historyToggle);
 
         const dmToggle = DmPanel.createToggleButton(dmPanelEl);
-        document.body.appendChild(dmToggle);
+        panelToolbar.appendChild(dmToggle);
+
+        // Insert toolbar into header actions
+        document.querySelector('.game-header-actions').prepend(panelToolbar);
 
         // Sound
         soundToggle.addEventListener('click', () => {

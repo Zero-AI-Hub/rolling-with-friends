@@ -9,30 +9,31 @@ const Protocol = (() => {
     // Message types
     const MSG = Object.freeze({
         // Player → DM
-        PLAYER_INFO:    'PLAYER_INFO',
-        ROLL_REQUEST:   'ROLL_REQUEST',
+        PLAYER_INFO: 'PLAYER_INFO',
+        ROLL_REQUEST: 'ROLL_REQUEST',
         CLEAR_MY_TABLE: 'CLEAR_MY_TABLE',
 
         // DM → Player(s)
-        ROLL_RESULT:    'ROLL_RESULT',
-        STATE_SYNC:     'STATE_SYNC',
-        PLAYER_JOINED:  'PLAYER_JOINED',
-        PLAYER_LEFT:    'PLAYER_LEFT',
-        PLAYER_KICKED:  'PLAYER_KICKED',
-        TABLE_CLEARED:  'TABLE_CLEARED',
-        HISTORY_CLEARED:'HISTORY_CLEARED',
-        PLAYER_LIST:    'PLAYER_LIST',
-        AVATAR_UPDATE:  'AVATAR_UPDATE',
+        ROLL_RESULT: 'ROLL_RESULT',
+        STATE_SYNC: 'STATE_SYNC',
+        PLAYER_JOINED: 'PLAYER_JOINED',
+        PLAYER_LEFT: 'PLAYER_LEFT',
+        PLAYER_KICKED: 'PLAYER_KICKED',
+        TABLE_CLEARED: 'TABLE_CLEARED',
+        HISTORY_CLEARED: 'HISTORY_CLEARED',
+        PLAYER_LIST: 'PLAYER_LIST',
+        AVATAR_UPDATE: 'AVATAR_UPDATE',
+        NICK_TAKEN: 'NICK_TAKEN',
 
         // Bidirectional
-        PING:           'PING',
-        PONG:           'PONG',
+        PING: 'PING',
+        PONG: 'PONG',
     });
 
     // Visibility modes
     const VISIBILITY = Object.freeze({
-        PUBLIC:   'PUBLIC',
-        PRIVATE:  'PRIVATE',   // DM only (or self + DM for players)
+        PUBLIC: 'PUBLIC',
+        PRIVATE: 'PRIVATE',   // DM only (or self + DM for players)
         TARGETED: 'TARGETED',  // specific players + DM always
     });
 
@@ -134,6 +135,14 @@ const Protocol = (() => {
         };
     }
 
+    function createNickTaken(nick) {
+        return {
+            type: MSG.NICK_TAKEN,
+            nick,
+            message: `The nickname "${nick}" is already taken.`,
+        };
+    }
+
     // --- Validation ---
 
     function isValidMessage(msg) {
@@ -173,6 +182,7 @@ const Protocol = (() => {
         createHistoryCleared,
         createPlayerList,
         createAvatarUpdate,
+        createNickTaken,
         isValidMessage,
         isValidDiceSpec,
         isValidRollRequest,

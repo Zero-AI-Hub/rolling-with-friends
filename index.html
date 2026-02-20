@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Dice Online — A peer-to-peer dice roller for tabletop RPGs. No server required.">
+    <title>Dice Online — Roll Together</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="lobby-container">
+        <h1 class="lobby-title">🎲 Dice Online</h1>
+        <p class="lobby-subtitle">Peer-to-peer dice rolling for tabletop RPGs</p>
+
+        <div class="lobby-cards">
+            <!-- Create Room (DM) -->
+            <div class="lobby-card" id="create-card">
+                <h2>⚔️ Create Room (DM)</h2>
+                <div class="form-group">
+                    <label for="dm-room-name">Room Name</label>
+                    <input type="text" id="dm-room-name" placeholder="e.g. dragon-quest" maxlength="32">
+                </div>
+                <div class="form-group">
+                    <label for="dm-nick">Your Nick</label>
+                    <input type="text" id="dm-nick" placeholder="e.g. DungeonMaster" maxlength="24">
+                </div>
+                <div class="form-group">
+                    <label>Choose Avatar</label>
+                    <div id="dm-avatar-picker"></div>
+                </div>
+                <button class="btn btn-accent" id="create-room-btn">🏰 Create Room</button>
+            </div>
+
+            <!-- Join Room (Player) -->
+            <div class="lobby-card" id="join-card">
+                <h2>🛡️ Join Room (Player)</h2>
+                <div class="form-group">
+                    <label for="player-room-name">Room Name</label>
+                    <input type="text" id="player-room-name" placeholder="e.g. dragon-quest" maxlength="32">
+                </div>
+                <div class="form-group">
+                    <label for="player-nick">Your Nick</label>
+                    <input type="text" id="player-nick" placeholder="e.g. Gandalf" maxlength="24">
+                </div>
+                <div class="form-group">
+                    <label>Choose Avatar</label>
+                    <div id="player-avatar-picker"></div>
+                </div>
+                <button class="btn btn-accent" id="join-room-btn">🎯 Join Room</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/ui/avatarPicker.js"></script>
+    <script>
+        // --- Lobby Logic ---
+        let dmAvatar = 'builtin:0';
+        let playerAvatar = 'builtin:0';
+
+        // Render avatar pickers
+        AvatarPicker.render(
+            document.getElementById('dm-avatar-picker'),
+            (data) => { dmAvatar = data; },
+            dmAvatar
+        );
+
+        AvatarPicker.render(
+            document.getElementById('player-avatar-picker'),
+            (data) => { playerAvatar = data; },
+            playerAvatar
+        );
+
+        // Sanitize room name: lowercase, alphanumeric + hyphens only
+        function sanitizeRoomName(name) {
+            return name.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+        }
+
+        // Create Room
+        document.getElementById('create-room-btn').addEventListener('click', () => {
+            const roomRaw = document.getElementById('dm-room-name').value.trim();
+            const nick = document.getElementById('dm-nick').value.trim();
+
+            if (!roomRaw) {
+                document.getElementById('dm-room-name').classList.add('input-error');
+                setTimeout(() => document.getElementById('dm-room-name').classList.remove('input-error'), 800);
+                return;
+            }
+            if (!nick) {
+                document.getElementById('dm-nick').classList.add('input-error');
+                setTimeout(() => document.getElementById('dm-nick').classList.remove('input-error'), 800);
+                return;
+            }
+
+            const room = sanitizeRoomName(roomRaw);
+            const params = new URLSearchParams({
+                room,
+                nick,
+                avatar: dmAvatar,
+            });
+            window.location.href = `dm.html?${params.toString()}`;
+        });
+
+        // Join Room
+        document.getElementById('join-room-btn').addEventListener('click', () => {
+            const roomRaw = document.getElementById('player-room-name').value.trim();
+            const nick = document.getElementById('player-nick').value.trim();
+
+            if (!roomRaw) {
+                document.getElementById('player-room-name').classList.add('input-error');
+                setTimeout(() => document.getElementById('player-room-name').classList.remove('input-error'), 800);
+                return;
+            }
+            if (!nick) {
+                document.getElementById('player-nick').classList.add('input-error');
+                setTimeout(() => document.getElementById('player-nick').classList.remove('input-error'), 800);
+                return;
+            }
+
+            const room = sanitizeRoomName(roomRaw);
+            const params = new URLSearchParams({
+                room,
+                nick,
+                avatar: playerAvatar,
+            });
+            window.location.href = `player.html?${params.toString()}`;
+        });
+
+        // Allow Enter key to submit
+        document.querySelectorAll('#create-card input').forEach(input => {
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') document.getElementById('create-room-btn').click();
+            });
+        });
+        document.querySelectorAll('#join-card input').forEach(input => {
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') document.getElementById('join-room-btn').click();
+            });
+        });
+    </script>
+</body>
+</html>

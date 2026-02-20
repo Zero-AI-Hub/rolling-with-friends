@@ -1,0 +1,234 @@
+/**
+ * state.js — Game state management for Dice Online.
+ * 
+ * Central state object that holds all room data.
+ * Used by the DM as the authoritative state, and by players
+ * as a local mirror (synced via STATE_SYNC messages).
+ */
+
+const GameState = (() => {
+    /**
+     * Create a new empty game state.
+     * @param {string} roomName
+     * @param {string} dmNick
+     * @param {*} dmAvatar - avatar data (index or base64)
+     * @returns {object} state
+     */
+    function create(roomName, dmNick, dmAvatar) {
+        return {
+            roomName,
+            dmNick,
+            dmAvatar,
+            dmPeerId: null,
+            players: {},   // { peerId: { nick, avatarData, connected, table: [], autoclear: false } }
+            history: [],   // [{ playerId, nick, dice, total, visibility, targets, timestamp }]
+            createdAt: Date.now(),
+        };
+    }
+
+    /**
+     * Add a player to the state.
+     */
+    function addPlayer(state, peerId, nick, avatarData) {
+        state.players[peerId] = {
+            nick,
+            avatarData,
+            connected: true,
+            table: [],
+            autoclear: false,
+        };
+        return state;
+    }
+
+    /**
+     * Remove a player from the state entirely.
+     */
+    function removePlayer(state, peerId) {
+        delete state.players[peerId];
+        return state;
+    }
+
+    /**
+     * Mark a player as disconnected (but keep their data for reconnection).
+     */
+    function disconnectPlayer(state, peerId) {
+        if (state.players[peerId]) {
+            state.players[peerId].connected = false;
+        }
+        return state;
+    }
+
+    /**
+     * Reconnect a player — find by nick and update their peer ID.
+     * Returns the old peerId if found, or null.
+     */
+    function reconnectPlayer(state, newPeerId, nick, avatarData) {
+        // Find existing player with same nick
+        for (const [oldPeerId, player] of Object.entries(state.players)) {
+            if (player.nick === nick && !player.connected) {
+                // Move data to new peer ID
+                const playerData = { ...player, connected: true, avatarData: avatarData || player.avatarData };
+                delete state.players[oldPeerId];
+                state.players[newPeerId] = playerData;
+                return oldPeerId;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Add a roll result to a player's table and to history.
+     */
+    function addRoll(state, peerId, rollResult) {
+        const player = state.players[peerId];
+        if (!player) return state;
+
+        // Autoclear: clear table before adding new roll
+        if (player.autoclear) {
+            player.table = [];
+        }
+
+        player.table.push(rollResult);
+        state.history.push(rollResult);
+        return state;
+    }
+
+    /**
+     * Add a DM roll to history (DM doesn't have a player entry, handle separately).
+     */
+    function addDmRoll(state, rollResult) {
+        state.history.push(rollResult);
+        return state;
+    }
+
+    /**
+     * Clear a specific player's table.
+     */
+    function clearTable(state, peerId) {
+        if (peerId === null || peerId === undefined) {
+            // Clear all tables
+            for (const player of Object.values(state.players)) {
+                player.table = [];
+            }
+        } else if (state.players[peerId]) {
+            state.players[peerId].table = [];
+        }
+        return state;
+    }
+
+    /**
+     * Clear the roll history.
+     */
+    function clearHistory(state) {
+        state.history = [];
+        return state;
+    }
+
+    /**
+     * Set autoclear for a player.
+     */
+    function setAutoclear(state, peerId, enabled) {
+        if (state.players[peerId]) {
+            state.players[peerId].autoclear = enabled;
+        }
+        return state;
+    }
+
+    /**
+     * Get a list of connected players (for the player list).
+     */
+    function getPlayerList(state) {
+        return Object.entries(state.players).map(([id, p]) => ({
+            id,
+            nick: p.nick,
+            avatarData: p.avatarData,
+            connected: p.connected,
+        }));
+    }
+
+    /**
+     * Serialize state to JSON (for localStorage / STATE_SYNC).
+     */
+    function toJSON(state) {
+        return JSON.parse(JSON.stringify(state));
+    }
+
+    /**
+     * Deserialize state from JSON.
+     */
+    function fromJSON(json) {
+        if (typeof json === 'string') {
+            try {
+                json = JSON.parse(json);
+            } catch (e) {
+                return null;
+            }
+        }
+        if (!json || !json.roomName) return null;
+
+        // Ensure all expected fields exist
+        return {
+            roomName: json.roomName,
+            dmNick: json.dmNick || 'DM',
+            dmAvatar: json.dmAvatar || null,
+            dmPeerId: json.dmPeerId || null,
+            players: json.players || {},
+            history: json.history || [],
+            createdAt: json.createdAt || Date.now(),
+        };
+    }
+
+    /**
+     * Create a sanitized state for sending to a specific player.
+     * Filters out private rolls that the player shouldn't see.
+     */
+    function createPlayerView(state, viewerPeerId) {
+        const view = toJSON(state);
+
+        // Filter each player's table to only show visible rolls
+        for (const [peerId, player] of Object.entries(view.players)) {
+            player.table = player.table.filter(roll =>
+                isRollVisibleTo(roll, viewerPeerId)
+            );
+        }
+
+        // Filter history similarly
+        view.history = view.history.filter(roll =>
+            isRollVisibleTo(roll, viewerPeerId)
+        );
+
+        return view;
+    }
+
+    /**
+     * Check if a roll is visible to a given viewer.
+     */
+    function isRollVisibleTo(roll, viewerPeerId) {
+        if (roll.visibility === 'PUBLIC') return true;
+        if (roll.playerId === viewerPeerId) return true;
+        if (roll.visibility === 'TARGETED' && roll.targets && roll.targets.includes(viewerPeerId)) return true;
+        return false;
+    }
+
+    return {
+        create,
+        addPlayer,
+        removePlayer,
+        disconnectPlayer,
+        reconnectPlayer,
+        addRoll,
+        addDmRoll,
+        clearTable,
+        clearHistory,
+        setAutoclear,
+        getPlayerList,
+        toJSON,
+        fromJSON,
+        createPlayerView,
+        isRollVisibleTo,
+    };
+})();
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = GameState;
+}

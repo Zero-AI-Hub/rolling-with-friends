@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Dice Online — Player Screen">
+    <title>Dice Online — Player</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <!-- Connection Banner -->
+    <div class="connection-banner hidden" id="connection-banner"></div>
+
+    <div class="game-container">
+        <!-- Header -->
+        <header class="game-header">
+            <div>
+                <span class="game-header-title">🎲 Dice Online</span>
+                <span class="game-header-room" id="header-room"></span>
+            </div>
+            <div class="game-header-actions">
+                <div class="connection-status">
+                    <span class="status-dot" id="status-dot"></span>
+                    <span id="status-text">Connecting...</span>
+                </div>
+                <button class="sound-toggle" id="sound-toggle" title="Toggle sound">🔊</button>
+            </div>
+        </header>
+
+        <!-- Player Pool -->
+        <div class="game-main">
+            <div id="player-pool"></div>
+        </div>
+
+        <!-- Dice Roller -->
+        <div id="dice-roller"></div>
+    </div>
+
+    <!-- History Panel (side) -->
+    <div class="side-panel panel-right" id="history-panel"></div>
+
+    <!-- Scripts: PeerJS CDN -->
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+
+    <!-- Core modules -->
+    <script src="js/protocol.js"></script>
+    <script src="js/dice.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/connection.js"></script>
+    <script src="js/sound.js"></script>
+
+    <!-- UI components -->
+    <script src="js/ui/avatarPicker.js"></script>
+    <script src="js/ui/diceRoller.js"></script>
+    <script src="js/ui/playerPool.js"></script>
+    <script src="js/ui/historyPanel.js"></script>
+
+    <script>
+        // --- Player Page Logic ---
+        const params = new URLSearchParams(window.location.search);
+        const roomName = params.get('room');
+        const myNick = params.get('nick') || 'Player';
+        const myAvatar = params.get('avatar') || 'builtin:0';
+
+        if (!roomName) {
+            window.location.href = 'index.html';
+        }
+
+        // UI references
+        const headerRoom = document.getElementById('header-room');
+        const statusDot = document.getElementById('status-dot');
+        const statusText = document.getElementById('status-text');
+        const playerPoolEl = document.getElementById('player-pool');
+        const diceRollerEl = document.getElementById('dice-roller');
+        const historyPanelEl = document.getElementById('history-panel');
+        const connectionBanner = document.getElementById('connection-banner');
+        const soundToggle = document.getElementById('sound-toggle');
+
+        headerRoom.textContent = `Room: ${roomName}`;
+
+        // --- Local State ---
+        let localState = {
+            roomName,
+            dmNick: 'DM',
+            dmAvatar: null,
+            dmTable: [],
+            players: {},
+            history: [],
+        };
+        let myPeerId = null;
+        let autoclear = false;
+        let playerList = []; // [{id, nick}] for targeting
+
+        // --- Connection ---
+        const client = Connection.createClient(roomName, {
+            onConnected: (peerId) => {
+                myPeerId = peerId;
+                setStatus('online', 'Connected');
+                hideBanner();
+
+                // Send player info to DM
+                client.send(Protocol.createPlayerInfo(myNick, myAvatar));
+                renderAll();
+            },
+            onDisconnected: () => {
+                setStatus('offline', 'Disconnected');
+                showBanner('Disconnected from DM. Reconnecting...', 'connecting');
+            },
+            onMessage: (msg) => {
+                handleMessage(msg);
+            },
+            onError: (err) => {
+                console.error('[Player] Error:', err);
+                setStatus('offline', 'Error');
+                showBanner(err.message || 'Connection error', 'error');
+            },
+        });
+
+        showBanner('Connecting to room...', 'connecting');
+        client.start();
+
+        // --- Message Handling ---
+        function handleMessage(msg) {
+            if (!Protocol.isValidMessage(msg)) return;
+
+            switch (msg.type) {
+                case Protocol.MSG.STATE_SYNC:
+                    handleStateSync(msg);
+                    break;
+                case Protocol.MSG.ROLL_RESULT:
+                    handleRollResult(msg);
+                    break;
+                case Protocol.MSG.PLAYER_JOINED:
+                    handlePlayerJoined(msg);
+                    break;
+                case Protocol.MSG.PLAYER_LEFT:
+                    handlePlayerLeft(msg);
+                    break;
+                case Protocol.MSG.PLAYER_KICKED:
+                    handlePlayerKicked(msg);
+                    break;
+                case Protocol.MSG.TABLE_CLEARED:
+                    handleTableCleared(msg);
+                    break;
+                case Protocol.MSG.HISTORY_CLEARED:
+                    handleHistoryCleared();
+                    break;
+                case Protocol.MSG.PLAYER_LIST:
+                    handlePlayerList(msg);
+                    break;
+                case Protocol.MSG.AVATAR_UPDATE:
+                    handleAvatarUpdate(msg);
+                    break;
+                default:
+                    console.warn('[Player] Unknown message:', msg.type);
+            }
+        }
+
+        function handleStateSync(msg) {
+            const s = msg.state;
+            if (!s) return;
+
+            localState.roomName = s.roomName || roomName;
+            localState.dmNick = s.dmNick || 'DM';
+            localState.dmAvatar = s.dmAvatar;
+            localState.dmTable = s.dmTable || [];
+            localState.players = s.players || {};
+            localState.history = s.history || [];
+
+            renderAll();
+        }
+
+        function handleRollResult(msg) {
+            Sound.playDiceRoll();
+
+            // Add to appropriate player's table
+            const playerId = msg.playerId;
+            if (playerId === 'dm') {
+                localState.dmTable = localState.dmTable || [];
+                localState.dmTable.push(msg);
+            } else if (localState.players[playerId]) {
+                localState.players[playerId].table = localState.players[playerId].table || [];
+                localState.players[playerId].table.push(msg);
+            } else if (playerId === myPeerId) {
+                // It's my own roll — find my entry by peerId
+                if (!localState.players[myPeerId]) {
+                    localState.players[myPeerId] = {
+                        nick: myNick,
+                        avatarData: myAvatar,
+                        connected: true,
+                        table: [],
+                    };
+                }
+                localState.players[myPeerId].table.push(msg);
+            }
+
+            // Add to history
+            localState.history.push(msg);
+
+            renderAll();
+        }
+
+        function handlePlayerJoined(msg) {
+            if (msg.playerId !== myPeerId) {
+                localState.players[msg.playerId] = {
+                    nick: msg.nick,
+                    avatarData: msg.avatarData,
+                    connected: true,
+                    table: [],
+                };
+            }
+            renderAll();
+        }
+
+        function handlePlayerLeft(msg) {
+            if (localState.players[msg.playerId]) {
+                localState.players[msg.playerId].connected = false;
+            }
+            renderAll();
+        }
+
+        function handlePlayerKicked(msg) {
+            if (msg.playerId === myPeerId) {
+                alert('You have been kicked from the room.');
+                window.location.href = 'index.html';
+            } else {
+                delete localState.players[msg.playerId];
+                renderAll();
+            }
+        }
+
+        function handleTableCleared(msg) {
+            if (msg.playerId === null) {
+                // Clear all tables
+                for (const p of Object.values(localState.players)) {
+                    p.table = [];
+                }
+                localState.dmTable = [];
+            } else if (msg.playerId === 'dm') {
+                localState.dmTable = [];
+            } else if (localState.players[msg.playerId]) {
+                localState.players[msg.playerId].table = [];
+            }
+            renderAll();
+        }
+
+        function handleHistoryCleared() {
+            localState.history = [];
+            renderAll();
+        }
+
+        function handlePlayerList(msg) {
+            playerList = msg.players || [];
+            // Update connection status
+            for (const p of playerList) {
+                if (localState.players[p.id]) {
+                    localState.players[p.id].connected = p.connected;
+                }
+            }
+            renderAll();
+        }
+
+        function handleAvatarUpdate(msg) {
+            if (msg.playerId === 'dm') {
+                localState.dmAvatar = msg.avatarData;
+                localState.dmNick = msg.nick;
+            } else if (localState.players[msg.playerId]) {
+                localState.players[msg.playerId].avatarData = msg.avatarData;
+            }
+            renderAll();
+        }
+
+        // --- Player Actions ---
+        function requestRoll(diceSpec, visibility, targets) {
+            // Autoclear: tell DM to clear our table first
+            if (autoclear) {
+                client.send({ type: Protocol.MSG.CLEAR_MY_TABLE });
+                // Optimistically clear local
+                if (localState.players[myPeerId]) {
+                    localState.players[myPeerId].table = [];
+                }
+            }
+
+            // DM always sees player rolls
+            client.send(Protocol.createRollRequest(diceSpec, visibility, targets));
+        }
+
+        function clearMyTable() {
+            client.send({ type: Protocol.MSG.CLEAR_MY_TABLE });
+            if (localState.players[myPeerId]) {
+                localState.players[myPeerId].table = [];
+            }
+            renderAll();
+        }
+
+        // --- Rendering ---
+        function renderAll() {
+            renderPlayerPool();
+            renderDiceRoller();
+            renderHistoryPanel();
+        }
+
+        function renderPlayerPool() {
+            PlayerPool.render(playerPoolEl, localState, {
+                isDM: false,
+                myPeerId,
+                onClearTable: (peerId) => {
+                    if (peerId === myPeerId || peerId === undefined) {
+                        clearMyTable();
+                    }
+                },
+            });
+        }
+
+        function renderDiceRoller() {
+            // Filter player list for targeting: exclude self
+            const otherPlayers = playerList.filter(p => p.id !== myPeerId);
+            DiceRoller.render(diceRollerEl, {
+                isDM: false,
+                players: otherPlayers,
+                autoclear,
+                onRoll: requestRoll,
+                onAutoclearChange: (enabled) => {
+                    autoclear = enabled;
+                },
+            });
+        }
+
+        function renderHistoryPanel() {
+            HistoryPanel.render(historyPanelEl, localState.history, {
+                isDM: false,
+            });
+        }
+
+        // --- UI Setup ---
+        const historyToggle = HistoryPanel.createToggleButton(historyPanelEl);
+        document.body.appendChild(historyToggle);
+
+        // Sound
+        soundToggle.addEventListener('click', () => {
+            Sound.init();
+            const muted = Sound.toggleMute();
+            soundToggle.textContent = muted ? '🔇' : '🔊';
+        });
+
+        document.addEventListener('click', () => Sound.init(), { once: true });
+
+        // --- Helpers ---
+        function setStatus(statusState, text) {
+            statusDot.className = `status-dot ${statusState}`;
+            statusText.textContent = text;
+        }
+
+        function showBanner(text, type) {
+            connectionBanner.textContent = text;
+            connectionBanner.className = `connection-banner ${type}`;
+        }
+
+        function hideBanner() {
+            connectionBanner.classList.add('hidden');
+        }
+
+        // Initial render
+        renderAll();
+    </script>
+</body>
+
+</html>

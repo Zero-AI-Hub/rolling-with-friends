@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dice Online — Test Runner</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #c9a84c;
+            border-bottom: 2px solid #c9a84c;
+            padding-bottom: 10px;
+        }
+
+        h3 {
+            color: #a0a0ff;
+        }
+
+        .test-summary {
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .test-summary.pass {
+            background: rgba(76, 175, 80, 0.2);
+            border: 1px solid #4caf50;
+            color: #4caf50;
+        }
+
+        .test-summary.fail {
+            background: rgba(231, 76, 60, 0.2);
+            border: 1px solid #e74c3c;
+            color: #e74c3c;
+        }
+
+        .test-suite-name {
+            margin-top: 20px;
+            margin-bottom: 8px;
+            color: #a0a0ff;
+            font-size: 1rem;
+        }
+
+        .test-result {
+            padding: 6px 12px;
+            margin: 4px 0;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        .test-result.pass {
+            background: rgba(76, 175, 80, 0.1);
+        }
+
+        .test-result.fail {
+            background: rgba(231, 76, 60, 0.15);
+        }
+
+        .test-error {
+            color: #e74c3c;
+            font-size: 0.85rem;
+            padding: 4px 0 0 24px;
+            font-style: italic;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🎲 Dice Online — Test Runner</h1>
+    <div id="results">Running tests...</div>
+
+    <!-- Load source modules -->
+    <script src="../js/protocol.js"></script>
+    <script src="../js/dice.js"></script>
+    <script src="../js/state.js"></script>
+
+    <!-- Load test harness -->
+    <script src="test-harness.js"></script>
+
+    <!-- Load tests -->
+    <script src="dice.test.js"></script>
+    <script src="protocol.test.js"></script>
+    <script src="state.test.js"></script>
+
+    <!-- Render results -->
+    <script>
+        TestHarness.renderResults(document.getElementById('results'));
+    </script>
+</body>
+
+</html>

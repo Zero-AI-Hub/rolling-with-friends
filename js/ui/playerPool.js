@@ -19,6 +19,9 @@ const PlayerPool = (() => {
         container.innerHTML = '';
         container.classList.add('player-pool');
 
+        // Use DocumentFragment for batch DOM insertion
+        const fragment = document.createDocumentFragment();
+
         // DM card
         const dmCard = createPlayerCard({
             peerId: 'dm',
@@ -29,7 +32,7 @@ const PlayerPool = (() => {
             isMe: options.isDM,
             connected: true,
         }, options);
-        container.appendChild(dmCard);
+        fragment.appendChild(dmCard);
 
         // Player cards
         for (const [peerId, player] of Object.entries(state.players)) {
@@ -43,20 +46,10 @@ const PlayerPool = (() => {
                 connected: player.connected,
                 autoclear: player.autoclear,
             }, options);
-            container.appendChild(card);
+            fragment.appendChild(card);
         }
 
-        // If DM, add "Clear All Tables" button
-        if (options.isDM && Object.keys(state.players).length > 0) {
-            const clearAllBtn = document.createElement('button');
-            clearAllBtn.type = 'button';
-            clearAllBtn.className = 'btn btn-small btn-danger clear-all-btn';
-            clearAllBtn.textContent = '🗑️ Clear All Tables';
-            clearAllBtn.addEventListener('click', () => {
-                if (options.onClearTable) options.onClearTable(null);
-            });
-            container.appendChild(clearAllBtn);
-        }
+        container.appendChild(fragment);
     }
 
     function createPlayerCard(playerData, options) {
@@ -166,7 +159,7 @@ const PlayerPool = (() => {
                 // Critical highlighting
                 if (Dice.isCriticalHit(result, dieGroup.sides)) {
                     resultEl.classList.add('critical-hit');
-                } else if (Dice.isCriticalFail(result, dieGroup.sides)) {
+                } else if (Dice.isCriticalFail(result)) {
                     resultEl.classList.add('critical-fail');
                 }
 

@@ -93,13 +93,13 @@
 
     describe('Dice.isCriticalFail', () => {
         it('should return true when result is 1', () => {
-            expect(DiceModule.isCriticalFail(1, 20)).toBeTrue();
-            expect(DiceModule.isCriticalFail(1, 6)).toBeTrue();
+            expect(DiceModule.isCriticalFail(1)).toBeTrue();
+            expect(DiceModule.isCriticalFail(1)).toBeTrue();
         });
 
         it('should return false when result is not 1', () => {
-            expect(DiceModule.isCriticalFail(2, 20)).toBeFalse();
-            expect(DiceModule.isCriticalFail(20, 20)).toBeFalse();
+            expect(DiceModule.isCriticalFail(2)).toBeFalse();
+            expect(DiceModule.isCriticalFail(20)).toBeFalse();
         });
     });
 

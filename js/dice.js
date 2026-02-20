@@ -52,10 +52,9 @@ const Dice = (() => {
     /**
      * Check if a die result is a critical fail (natural 1).
      * @param {number} result
-     * @param {number} sides
      * @returns {boolean}
      */
-    function isCriticalFail(result, sides) {
+    function isCriticalFail(result) {
         return result === 1;
     }
 

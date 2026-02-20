@@ -35,15 +35,9 @@ Enhancements:
 - Be able to change user name and profile picture
 - Add dice picture to buttons
 - Improve roll aesthetics
+- If previous session available with the same name, show popup to choose between restoring or not
 
 MISTAKES TO FIX:
-- The DM can't clear his own table
-- The history and config buttons are poorly placed over the roll button
-- Once opened, the history and config windows can't be closed
-- The visibility toggle and autoclear are really ugly
-- When rolling a second time without clearing the table, the new rolls are added to the previous ones instead of replacing them
-- You should be able to add mutliple dice simoultaneously
-- When a player leaves his spot on the table should be cleared and casted to all players
-- the players with same name should be considered the same (no two players can have the same name)
-- When a new player joins or a player leaves that info should be casted to all players
-- I would prefer having the data of user name and similar somewhere that isn't the url (like localstorage or something similar)
+- Keep previous roll does a new roll instead of continuing with the latest
+- When not keeping the roll, it clears locally but not for the rest of the people when the DM is rolling
+- Select players on visibility is extremely ugly

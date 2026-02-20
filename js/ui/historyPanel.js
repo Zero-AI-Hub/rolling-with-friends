@@ -59,6 +59,9 @@ const HistoryPanel = (() => {
             empty.textContent = 'No rolls yet...';
             list.appendChild(empty);
         } else {
+            // Use DocumentFragment for batch DOM insertion
+            const fragment = document.createDocumentFragment();
+
             // Show newest first
             [...history].reverse().forEach(roll => {
                 const entry = document.createElement('div');
@@ -104,7 +107,7 @@ const HistoryPanel = (() => {
 
                         if (Dice.isCriticalHit(result, dieGroup.sides)) {
                             chip.classList.add('critical-hit');
-                        } else if (Dice.isCriticalFail(result, dieGroup.sides)) {
+                        } else if (Dice.isCriticalFail(result)) {
                             chip.classList.add('critical-fail');
                         }
 
@@ -118,8 +121,10 @@ const HistoryPanel = (() => {
                 results.appendChild(totalChip);
 
                 entry.appendChild(results);
-                list.appendChild(entry);
+                fragment.appendChild(entry);
             });
+
+            list.appendChild(fragment);
         }
 
         container.appendChild(list);

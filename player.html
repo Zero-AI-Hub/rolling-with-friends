@@ -56,10 +56,10 @@
     <script src="js/ui/diceRoller.js"></script>
     <script src="js/ui/playerPool.js"></script>
     <script src="js/ui/historyPanel.js"></script>
+    <script src="js/ui/ui-helpers.js"></script>
 
     <script>
         // --- Player Page Logic ---
-        // Read session data from localStorage instead of URL params
         const session = JSON.parse(localStorage.getItem('dice-online-session') || '{}');
         const roomName = session.room;
         const myNick = session.nick || 'Player';
@@ -85,6 +85,19 @@
         const soundToggle = document.getElementById('sound-toggle');
 
         headerRoom.textContent = `Room: ${roomName}`;
+
+        // --- Helpers (delegating to UIHelpers) ---
+        function setStatus(statusState, text) {
+            UIHelpers.setStatus(statusDot, statusText, statusState, text);
+        }
+
+        function showBanner(text, type) {
+            UIHelpers.showBanner(connectionBanner, text, type);
+        }
+
+        function hideBanner() {
+            UIHelpers.hideBanner(connectionBanner);
+        }
 
         // --- Local State ---
         let localState = {
@@ -224,7 +237,6 @@
         }
 
         function handlePlayerLeft(msg) {
-            // Remove player entirely (their spot is cleared)
             delete localState.players[msg.playerId];
             renderAll();
         }
@@ -241,7 +253,6 @@
 
         function handleTableCleared(msg) {
             if (msg.playerId === null) {
-                // Clear all tables
                 for (const p of Object.values(localState.players)) {
                     p.table = [];
                 }
@@ -308,12 +319,14 @@
             renderAll();
         }
 
-        // --- Rendering ---
-        function renderAll() {
+        // --- Rendering (throttled) ---
+        function doRenderAll() {
             renderPlayerPool();
             renderDiceRoller();
             renderHistoryPanel();
         }
+
+        const renderAll = UIHelpers.createThrottledRender(doRenderAll);
 
         function renderPlayerPool() {
             PlayerPool.render(playerPoolEl, localState, {
@@ -348,38 +361,13 @@
         }
 
         // --- UI Setup ---
-        const panelToolbar = document.createElement('div');
-        panelToolbar.className = 'panel-toolbar';
-
         const historyToggle = HistoryPanel.createToggleButton(historyPanelEl);
-        panelToolbar.appendChild(historyToggle);
+        UIHelpers.setupPanelToolbar(
+            document.querySelector('.game-header-actions'),
+            [historyToggle]
+        );
 
-        // Insert toolbar into header actions
-        document.querySelector('.game-header-actions').prepend(panelToolbar);
-
-        // Sound
-        soundToggle.addEventListener('click', () => {
-            Sound.init();
-            const muted = Sound.toggleMute();
-            soundToggle.textContent = muted ? '🔇' : '🔊';
-        });
-
-        document.addEventListener('click', () => Sound.init(), { once: true });
-
-        // --- Helpers ---
-        function setStatus(statusState, text) {
-            statusDot.className = `status-dot ${statusState}`;
-            statusText.textContent = text;
-        }
-
-        function showBanner(text, type) {
-            connectionBanner.textContent = text;
-            connectionBanner.className = `connection-banner ${type}`;
-        }
-
-        function hideBanner() {
-            connectionBanner.classList.add('hidden');
-        }
+        UIHelpers.setupSoundToggle(soundToggle);
 
         // Initial render
         renderAll();

@@ -61,10 +61,10 @@
     <script src="js/ui/playerPool.js"></script>
     <script src="js/ui/historyPanel.js"></script>
     <script src="js/ui/dmPanel.js"></script>
+    <script src="js/ui/ui-helpers.js"></script>
 
     <script>
         // --- DM Page Logic ---
-        // Read session data from localStorage instead of URL params
         const session = JSON.parse(localStorage.getItem('dice-online-session') || '{}');
         const roomName = session.room;
         const dmNick = session.nick || 'DM';
@@ -91,6 +91,19 @@
         const soundToggle = document.getElementById('sound-toggle');
 
         headerRoom.textContent = `Room: ${roomName}`;
+
+        // --- Helpers (delegating to UIHelpers) ---
+        function setStatus(statusState, text) {
+            UIHelpers.setStatus(statusDot, statusText, statusState, text);
+        }
+
+        function showBanner(text, type) {
+            UIHelpers.showBanner(connectionBanner, text, type);
+        }
+
+        function hideBanner() {
+            UIHelpers.hideBanner(connectionBanner);
+        }
 
         // --- State ---
         let state;
@@ -129,7 +142,6 @@
                 const player = state.players[peerId];
                 if (player) {
                     console.log(`[DM] Player disconnected: ${player.nick}`);
-                    // Remove player entirely and broadcast
                     GameState.removePlayer(state, peerId);
                     Storage.saveState(roomName, state);
                     host.broadcast(Protocol.createPlayerLeft(peerId, player.nick));
@@ -268,10 +280,7 @@
             GameState.clearTable(state, peerId);
             Storage.saveState(roomName, state);
 
-            // Let the player know
-            host.sendTo(peerId, Protocol.createTableCleared(peerId));
-
-            // Other players see the table cleared (public visibility)
+            // Broadcast includes the requesting player, no separate sendTo needed
             host.broadcast(Protocol.createTableCleared(peerId));
 
             renderAll();
@@ -354,13 +363,15 @@
             host.broadcast(Protocol.createPlayerList(playerList));
         }
 
-        // --- Rendering ---
-        function renderAll() {
+        // --- Rendering (throttled) ---
+        function doRenderAll() {
             renderPlayerPool();
             renderDiceRoller();
             renderHistoryPanel();
             renderDmPanel();
         }
+
+        const renderAll = UIHelpers.createThrottledRender(doRenderAll);
 
         function renderPlayerPool() {
             PlayerPool.render(playerPoolEl, state, {
@@ -401,44 +412,14 @@
         }
 
         // --- UI Setup ---
-
-        // Toggle buttons in a toolbar (not floating over content)
-        const panelToolbar = document.createElement('div');
-        panelToolbar.className = 'panel-toolbar';
-
         const historyToggle = HistoryPanel.createToggleButton(historyPanelEl);
-        panelToolbar.appendChild(historyToggle);
-
         const dmToggle = DmPanel.createToggleButton(dmPanelEl);
-        panelToolbar.appendChild(dmToggle);
+        UIHelpers.setupPanelToolbar(
+            document.querySelector('.game-header-actions'),
+            [historyToggle, dmToggle]
+        );
 
-        // Insert toolbar into header actions
-        document.querySelector('.game-header-actions').prepend(panelToolbar);
-
-        // Sound
-        soundToggle.addEventListener('click', () => {
-            Sound.init();
-            const muted = Sound.toggleMute();
-            soundToggle.textContent = muted ? '🔇' : '🔊';
-        });
-
-        // Init sound on first interaction
-        document.addEventListener('click', () => Sound.init(), { once: true });
-
-        // --- Helpers ---
-        function setStatus(state, text) {
-            statusDot.className = `status-dot ${state}`;
-            statusText.textContent = text;
-        }
-
-        function showBanner(text, type) {
-            connectionBanner.textContent = text;
-            connectionBanner.className = `connection-banner ${type}`;
-        }
-
-        function hideBanner() {
-            connectionBanner.classList.add('hidden');
-        }
+        UIHelpers.setupSoundToggle(soundToggle);
 
         // Initial render
         renderAll();

@@ -145,9 +145,11 @@ const Protocol = (() => {
 
     // --- Validation ---
 
+    const VALID_MSG_TYPES = new Set(Object.values(MSG));
+
     function isValidMessage(msg) {
         if (!msg || typeof msg !== 'object') return false;
-        if (!msg.type || !Object.values(MSG).includes(msg.type)) return false;
+        if (!msg.type || !VALID_MSG_TYPES.has(msg.type)) return false;
         return true;
     }
 

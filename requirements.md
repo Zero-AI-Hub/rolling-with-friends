@@ -32,11 +32,9 @@ Some extra details:
 
 Enhancements:
 - Add multiple languages
-- Be able to change user name and profile picture
 - Add dice picture to buttons
 - Improve roll aesthetics
 - Improve redability by having rolls of different die sizes ordered vertically
-- Remember the last kind of dice rolled so the user can just press the button to roll again
 - Let clear just one kind of die clicking on them on the roll queue
 - Remember the last visibility setting
 - Add options to enable or disable remembering last roll and remembering last visibility setting

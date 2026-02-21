@@ -184,49 +184,6 @@ const DiceRoller = (() => {
         controls.appendChild(visGroup);
         controls.appendChild(targetGroup);
 
-        const toggleContainer = document.createElement('div');
-        toggleContainer.className = 'toggle-container';
-        toggleContainer.style.display = 'flex';
-        toggleContainer.style.flexDirection = 'column';
-        toggleContainer.style.gap = '8px';
-
-        // "Remember dice pool" toggle
-        const rememberGroup = document.createElement('div');
-        rememberGroup.className = 'remember-dice-group';
-
-        const rememberLabel = document.createElement('label');
-        rememberLabel.className = 'toggle-switch-label';
-
-        const rememberCb = document.createElement('input');
-        rememberCb.type = 'checkbox';
-        rememberCb.id = 'remember-dice-toggle';
-        rememberCb.className = 'toggle-switch-input';
-
-        let rememberDice = true;
-        const storedRememberState = localStorage.getItem('dice-online-remember-pool');
-        if (storedRememberState !== null) {
-            rememberDice = storedRememberState === 'true';
-        }
-        rememberCb.checked = rememberDice;
-
-        const rememberSlider = document.createElement('span');
-        rememberSlider.className = 'toggle-switch-slider';
-
-        rememberCb.addEventListener('change', () => {
-            rememberDice = rememberCb.checked;
-            localStorage.setItem('dice-online-remember-pool', rememberDice);
-        });
-
-        const rememberText = document.createElement('span');
-        rememberText.className = 'toggle-switch-text';
-        rememberText.textContent = 'Remember dice pool';
-
-        rememberLabel.appendChild(rememberCb);
-        rememberLabel.appendChild(rememberSlider);
-        rememberLabel.appendChild(rememberText);
-        rememberGroup.appendChild(rememberLabel);
-        toggleContainer.appendChild(rememberGroup);
-
         // "Keep previous rolls" toggle (inverted autoclear)
         const keepGroup = document.createElement('div');
         keepGroup.className = 'keep-rolls-group';
@@ -257,9 +214,7 @@ const DiceRoller = (() => {
         keepLabel.appendChild(slider);
         keepLabel.appendChild(keepText);
         keepGroup.appendChild(keepLabel);
-        toggleContainer.appendChild(keepGroup);
-
-        controls.appendChild(toggleContainer);
+        controls.appendChild(keepGroup);
 
         // Roll button
         const rollBtn = document.createElement('button');
@@ -286,11 +241,9 @@ const DiceRoller = (() => {
             const diceSpec = rollQueue.map(d => ({ sides: d.sides, count: d.count }));
             if (options.onRoll) options.onRoll(diceSpec, visibility, targets);
 
-            // Clear queue after rolling (if remember isn't on)
-            if (!rememberDice) {
-                rollQueue.length = 0;
-                updateQueueDisplay();
-            }
+            // Clear queue after rolling
+            rollQueue.length = 0;
+            updateQueueDisplay();
         });
 
         controls.appendChild(rollBtn);

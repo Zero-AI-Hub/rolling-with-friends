@@ -38,6 +38,10 @@ Enhancements:
 - Improve redability by having rolls of different die sizes ordered vertically
 - Remember the last kind of dice rolled so the user can just press the button to roll again
 - Let clear just one kind of die clicking on them on the roll queue
+- Remember the last visibility setting
+- Add options to enable or disable remembering last roll and remembering last visibility setting
+- Add options so the DM can change what is a critical hit and a critical fail (default is 20 and 1)
+
 
 MISTAKES TO FIX:
 - When not keeping the roll, it clears locally but not for the rest of the people when the DM is rolling

@@ -197,16 +197,15 @@
         function handleRollResult(msg) {
             Sound.playDiceRoll();
 
-            // Add to appropriate player's table
+            // Merge into appropriate player's table
             const playerId = msg.playerId;
             if (playerId === 'dm') {
-                localState.dmTable = localState.dmTable || [];
-                localState.dmTable.push(msg);
+                localState.dmTable = mergeIntoTable(localState.dmTable || [], msg);
             } else if (localState.players[playerId]) {
-                localState.players[playerId].table = localState.players[playerId].table || [];
-                localState.players[playerId].table.push(msg);
+                const player = localState.players[playerId];
+                player.table = mergeIntoTable(player.table || [], msg);
             } else if (playerId === myPeerId) {
-                // It's my own roll — find my entry by peerId
+                // It's my own roll — create entry if needed
                 if (!localState.players[myPeerId]) {
                     localState.players[myPeerId] = {
                         nick: myNick,
@@ -215,13 +214,34 @@
                         table: [],
                     };
                 }
-                localState.players[myPeerId].table.push(msg);
+                localState.players[myPeerId].table = mergeIntoTable(
+                    localState.players[myPeerId].table, msg
+                );
             }
 
-            // Add to history
+            // Add individual roll to history
             localState.history.push(msg);
 
             renderAll();
+        }
+
+        /**
+         * Merge a roll result into a table (array of roll entries).
+         * If table has an existing entry, appends dice and updates total.
+         * If empty, creates a new entry.
+         */
+        function mergeIntoTable(table, rollResult) {
+            if (table.length > 0) {
+                const existing = table[0];
+                existing.dice = existing.dice.concat(rollResult.dice);
+                existing.total += rollResult.total;
+                existing.timestamp = rollResult.timestamp || Date.now();
+                return [existing];
+            } else {
+                return [Object.assign({}, rollResult, {
+                    dice: rollResult.dice.slice(),
+                })];
+            }
         }
 
         function handlePlayerJoined(msg) {

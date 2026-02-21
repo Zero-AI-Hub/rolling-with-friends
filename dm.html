@@ -298,11 +298,18 @@
                 targets
             );
 
-            // Add DM roll to DM table
-            if (dmAutoclear) state.dmTable = [];
-            state.dmTable.push(rollResult);
+            // Add DM roll to DM table (merge or create new)
+            if (dmAutoclear || state.dmTable.length === 0) {
+                if (dmAutoclear) state.dmTable = [];
+                state.dmTable = [Object.assign({}, rollResult, { dice: rollResult.dice.slice() })];
+            } else {
+                const existing = state.dmTable[0];
+                existing.dice = existing.dice.concat(rollResult.dice);
+                existing.total += rollResult.total;
+                existing.timestamp = rollResult.timestamp || Date.now();
+            }
 
-            // Add to history
+            // Add to history (individual roll)
             GameState.addDmRoll(state, rollResult);
             Storage.saveState(roomName, state);
             Sound.playDiceRoll();

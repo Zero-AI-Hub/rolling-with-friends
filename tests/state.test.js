@@ -85,18 +85,39 @@
             expect(s.history).toHaveLength(1);
         });
 
-        it('should autoclear table before adding if autoclear is on', () => {
+        it('should merge dice into existing table entry on subsequent rolls', () => {
             const s = State.create('room', 'DM', null);
             State.addPlayer(s, 'peer-1', 'Gandalf', null);
-            State.setAutoclear(s, 'peer-1', true);
+
+            const roll1 = { dice: [{ sides: 20, count: 1, results: [17] }], total: 17, visibility: 'PUBLIC' };
+            State.addRoll(s, 'peer-1', roll1);
+            expect(s.players['peer-1'].table).toHaveLength(1);
+            expect(s.players['peer-1'].table[0].total).toBe(17);
+
+            const roll2 = { dice: [{ sides: 6, count: 2, results: [3, 5] }], total: 8, visibility: 'PUBLIC' };
+            State.addRoll(s, 'peer-1', roll2);
+            expect(s.players['peer-1'].table).toHaveLength(1); // still one entry
+            expect(s.players['peer-1'].table[0].total).toBe(25); // 17 + 8
+            expect(s.players['peer-1'].table[0].dice).toHaveLength(2); // two dice groups
+            expect(s.history).toHaveLength(2); // history keeps individual rolls
+        });
+
+        it('should create new entry after table is cleared', () => {
+            const s = State.create('room', 'DM', null);
+            State.addPlayer(s, 'peer-1', 'Gandalf', null);
 
             const roll1 = { dice: [{ sides: 6, count: 1, results: [3] }], total: 3, visibility: 'PUBLIC' };
             State.addRoll(s, 'peer-1', roll1);
             expect(s.players['peer-1'].table).toHaveLength(1);
 
+            // Clear table (simulates autoclear / CLEAR_MY_TABLE)
+            State.clearTable(s, 'peer-1');
+            expect(s.players['peer-1'].table).toHaveLength(0);
+
             const roll2 = { dice: [{ sides: 6, count: 1, results: [5] }], total: 5, visibility: 'PUBLIC' };
             State.addRoll(s, 'peer-1', roll2);
-            expect(s.players['peer-1'].table).toHaveLength(1); // autoclear: only latest roll
+            expect(s.players['peer-1'].table).toHaveLength(1);
+            expect(s.players['peer-1'].table[0].total).toBe(5); // fresh, not merged
             expect(s.history).toHaveLength(2); // history keeps all
         });
     });

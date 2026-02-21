@@ -36,6 +36,9 @@ Enhancements:
 - Add dice picture to buttons
 - Improve roll aesthetics
 - If previous session available with the same name, show popup to choose between restoring or not
+- Improve redability by having rolls of different die sizes ordered vertically
+- Remember the last kind of dice rolled so the user can just press the button to roll again
+- Let clear just one kind of die clicking on them on the roll queue
 
 MISTAKES TO FIX:
 - Keep previous roll does a new roll instead of continuing with the latest

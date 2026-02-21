@@ -78,18 +78,28 @@ const GameState = (() => {
 
     /**
      * Add a roll result to a player's table and to history.
+     * If the table already has a roll, merges dice into it (append dice, update total).
+     * Table clearing is handled client-side via CLEAR_MY_TABLE before rolling.
      */
     function addRoll(state, peerId, rollResult) {
         const player = state.players[peerId];
         if (!player) return state;
 
-        // Autoclear: clear table before adding new roll
-        if (player.autoclear) {
-            player.table = [];
+        // Always record individual roll in history
+        state.history.push(rollResult);
+
+        // Merge into existing table entry, or create new if empty
+        if (player.table.length > 0) {
+            const existing = player.table[0];
+            existing.dice = existing.dice.concat(rollResult.dice);
+            existing.total += rollResult.total;
+            existing.timestamp = rollResult.timestamp || Date.now();
+        } else {
+            player.table = [Object.assign({}, rollResult, {
+                dice: rollResult.dice.slice(),
+            })];
         }
 
-        player.table.push(rollResult);
-        state.history.push(rollResult);
         return state;
     }
 

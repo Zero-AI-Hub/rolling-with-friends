@@ -109,54 +109,77 @@ const DiceRoller = (() => {
         const controls = document.createElement('div');
         controls.className = 'dice-controls';
 
-        // Visibility selector
+        // Visibility selector — segmented toggle buttons
         const visGroup = document.createElement('div');
         visGroup.className = 'visibility-group';
 
-        const visLabel = document.createElement('label');
+        const visLabel = document.createElement('span');
+        visLabel.className = 'visibility-label';
         visLabel.textContent = 'Visibility:';
-        visLabel.htmlFor = 'visibility-select';
+        visGroup.appendChild(visLabel);
 
-        const visSelect = document.createElement('select');
-        visSelect.id = 'visibility-select';
-        visSelect.className = 'visibility-select';
+        const visBar = document.createElement('div');
+        visBar.className = 'visibility-bar';
 
-        const publicOpt = new Option('🌍 Public', 'PUBLIC');
-        const privateOpt = new Option('🔒 DM Only', 'PRIVATE');
-        visSelect.appendChild(publicOpt);
-        visSelect.appendChild(privateOpt);
+        let currentVisibility = 'PUBLIC';
 
-        // Targeted option only if there are other players
+        const visOptions = [
+            { value: 'PUBLIC', emoji: '🌍', label: 'Public' },
+            { value: 'PRIVATE', emoji: '🔒', label: 'Private' },
+        ];
+        // Only show Targeted if there are other players
         if (options.players && options.players.length > 0) {
-            const targetedOpt = new Option('🎯 Select players...', 'TARGETED');
-            visSelect.appendChild(targetedOpt);
+            visOptions.push({ value: 'TARGETED', emoji: '🎯', label: 'Targeted' });
         }
 
-        visGroup.appendChild(visLabel);
-        visGroup.appendChild(visSelect);
+        const visBtns = {};
+        visOptions.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'visibility-btn' + (opt.value === currentVisibility ? ' active' : '');
+            btn.dataset.value = opt.value;
+            btn.innerHTML = `<span class="vis-emoji">${opt.emoji}</span><span class="vis-text">${opt.label}</span>`;
+            btn.title = opt.label;
+            btn.addEventListener('click', () => {
+                currentVisibility = opt.value;
+                Object.values(visBtns).forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                targetGroup.classList.toggle('hidden', opt.value !== 'TARGETED');
+            });
+            visBtns[opt.value] = btn;
+            visBar.appendChild(btn);
+        });
 
-        // Target player checkboxes (hidden by default)
+        visGroup.appendChild(visBar);
+
+        // Target player chips (hidden by default, shown when TARGETED is selected)
         const targetGroup = document.createElement('div');
         targetGroup.className = 'target-group hidden';
         targetGroup.id = 'target-group';
 
-        if (options.players) {
-            options.players.forEach(p => {
-                const label = document.createElement('label');
-                label.className = 'target-label';
-                const cb = document.createElement('input');
-                cb.type = 'checkbox';
-                cb.value = p.id;
-                cb.className = 'target-checkbox';
-                label.appendChild(cb);
-                label.appendChild(document.createTextNode(' ' + p.nick));
-                targetGroup.appendChild(label);
-            });
-        }
+        if (options.players && options.players.length > 0) {
+            const targetLabel = document.createElement('span');
+            targetLabel.className = 'target-prompt';
+            targetLabel.textContent = 'Who can see this roll?';
+            targetGroup.appendChild(targetLabel);
 
-        visSelect.addEventListener('change', () => {
-            targetGroup.classList.toggle('hidden', visSelect.value !== 'TARGETED');
-        });
+            const chipContainer = document.createElement('div');
+            chipContainer.className = 'target-chips';
+
+            options.players.forEach(p => {
+                const chip = document.createElement('button');
+                chip.type = 'button';
+                chip.className = 'target-chip';
+                chip.dataset.playerId = p.id;
+                chip.innerHTML = `<span class="chip-avatar">👤</span><span class="chip-name">${p.nick}</span>`;
+                chip.addEventListener('click', () => {
+                    chip.classList.toggle('selected');
+                });
+                chipContainer.appendChild(chip);
+            });
+
+            targetGroup.appendChild(chipContainer);
+        }
 
         controls.appendChild(visGroup);
         controls.appendChild(targetGroup);
@@ -207,11 +230,11 @@ const DiceRoller = (() => {
                 return;
             }
 
-            const visibility = visSelect.value;
+            const visibility = currentVisibility;
             const targets = [];
             if (visibility === 'TARGETED') {
-                targetGroup.querySelectorAll('.target-checkbox:checked').forEach(cb => {
-                    targets.push(cb.value);
+                targetGroup.querySelectorAll('.target-chip.selected').forEach(chip => {
+                    targets.push(chip.dataset.playerId);
                 });
             }
 
@@ -257,17 +280,30 @@ const DiceRoller = (() => {
         if (!targetGroup) return;
 
         targetGroup.innerHTML = '';
+
+        if (players.length === 0) return;
+
+        const targetLabel = document.createElement('span');
+        targetLabel.className = 'target-prompt';
+        targetLabel.textContent = 'Who can see this roll?';
+        targetGroup.appendChild(targetLabel);
+
+        const chipContainer = document.createElement('div');
+        chipContainer.className = 'target-chips';
+
         players.forEach(p => {
-            const label = document.createElement('label');
-            label.className = 'target-label';
-            const cb = document.createElement('input');
-            cb.type = 'checkbox';
-            cb.value = p.id;
-            cb.className = 'target-checkbox';
-            label.appendChild(cb);
-            label.appendChild(document.createTextNode(' ' + p.nick));
-            targetGroup.appendChild(label);
+            const chip = document.createElement('button');
+            chip.type = 'button';
+            chip.className = 'target-chip';
+            chip.dataset.playerId = p.id;
+            chip.innerHTML = `<span class="chip-avatar">👤</span><span class="chip-name">${p.nick}</span>`;
+            chip.addEventListener('click', () => {
+                chip.classList.toggle('selected');
+            });
+            chipContainer.appendChild(chip);
         });
+
+        targetGroup.appendChild(chipContainer);
     }
 
     return {

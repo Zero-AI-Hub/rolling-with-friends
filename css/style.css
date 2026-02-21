@@ -727,30 +727,144 @@ label {
     display: flex;
     align-items: center;
     gap: var(--space-sm);
-}
-
-.visibility-group label {
-    margin-bottom: 0;
-    white-space: nowrap;
-}
-
-/* visibility-select is styled in the Styled Visibility Select section below */
-
-.target-group {
-    display: flex;
     flex-wrap: wrap;
-    gap: var(--space-sm);
-    padding: var(--space-sm);
-    background: rgba(0, 0, 0, 0.2);
-    border-radius: var(--radius-sm);
 }
 
-.target-label {
+.visibility-label {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    white-space: nowrap;
+    margin-bottom: 0;
+}
+
+.visibility-bar {
+    display: inline-flex;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: var(--bg-input);
+}
+
+.visibility-btn {
     display: inline-flex;
     align-items: center;
-    gap: var(--space-xs);
+    gap: 4px;
+    padding: 6px 14px;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
     font-size: 0.85rem;
-    margin-bottom: 0;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+    position: relative;
+}
+
+.visibility-btn+.visibility-btn {
+    border-left: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.visibility-btn:hover {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.visibility-btn.active {
+    color: var(--accent-primary);
+    background: rgba(138, 92, 246, 0.15);
+    box-shadow: inset 0 0 12px rgba(138, 92, 246, 0.1);
+}
+
+.vis-emoji {
+    font-size: 1rem;
+}
+
+.vis-text {
+    font-size: 0.8rem;
+    letter-spacing: 0.3px;
+}
+
+/* --- Target Player Chips --- */
+.target-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-md);
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(138, 92, 246, 0.2);
+    animation: fadeSlideDown 0.2s ease-out;
+}
+
+@keyframes fadeSlideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.target-prompt {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    font-style: italic;
+}
+
+.target-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-xs);
+}
+
+.target-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    user-select: none;
+}
+
+.target-chip:hover {
+    border-color: var(--accent-primary);
+    color: var(--text-primary);
+    background: rgba(138, 92, 246, 0.1);
+}
+
+.target-chip.selected {
+    border-color: var(--accent-primary);
+    background: rgba(138, 92, 246, 0.2);
+    color: var(--accent-primary);
+    box-shadow: 0 0 8px rgba(138, 92, 246, 0.2);
+}
+
+.target-chip.selected .chip-avatar::after {
+    content: '✓';
+    position: absolute;
+    right: -2px;
+    bottom: -1px;
+    font-size: 0.55rem;
+    color: var(--accent-primary);
+}
+
+.chip-avatar {
+    font-size: 0.9rem;
+    position: relative;
+}
+
+.chip-name {
+    font-weight: 500;
 }
 
 .keep-rolls-group {
@@ -829,28 +943,7 @@ label {
     transform: none;
 }
 
-/* --- Styled Visibility Select --- */
-.visibility-select {
-    width: auto;
-    min-width: 160px;
-    appearance: none;
-    -webkit-appearance: none;
-    background: var(--bg-input) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23a0a0b0' d='M2 4l4 4 4-4'/%3E%3C/svg%3E") no-repeat right 10px center;
-    padding-right: 30px;
-    border: var(--border-accent);
-    border-radius: var(--radius-sm);
-    color: var(--text-primary);
-    cursor: pointer;
-    transition: all var(--transition-fast);
-}
-
-.visibility-select:hover {
-    border-color: var(--accent-primary);
-}
-
-.visibility-select:focus {
-    box-shadow: 0 0 8px var(--accent-glow);
-}
+/* (visibility-select removed — replaced by segmented visibility-bar) */
 
 /* --- Side Panels (History / DM) --- */
 .side-panel {

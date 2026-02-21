@@ -41,6 +41,4 @@ Enhancements:
 - Let clear just one kind of die clicking on them on the roll queue
 
 MISTAKES TO FIX:
-- Keep previous roll does a new roll instead of continuing with the latest
 - When not keeping the roll, it clears locally but not for the rest of the people when the DM is rolling
-- Select players on visibility is extremely ugly

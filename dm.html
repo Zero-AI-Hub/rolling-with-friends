@@ -25,6 +25,7 @@
                     <span class="status-dot" id="status-dot"></span>
                     <span id="status-text">Connecting...</span>
                 </div>
+                <button class="btn-leave" id="leave-btn" title="Leave table">🚪 Leave</button>
                 <button class="sound-toggle" id="sound-toggle" title="Toggle sound">🔊</button>
             </div>
         </header>
@@ -105,336 +106,393 @@
             UIHelpers.hideBanner(connectionBanner);
         }
 
+        // --- Session Restore Modal ---
+        function showRestoreModal(playerCount) {
+            return new Promise((resolve) => {
+                const overlay = document.createElement('div');
+                overlay.className = 'modal-overlay';
+                overlay.innerHTML = `
+                    <div class="modal-card">
+                        <div class="modal-icon">📜</div>
+                        <div class="modal-title">Previous Session Found</div>
+                        <div class="modal-body">
+                            A saved session for <strong>${roomName}</strong> was found
+                            with <strong>${playerCount}</strong> player(s).<br>
+                            Would you like to restore it?
+                        </div>
+                        <div class="modal-actions">
+                            <button class="btn btn-secondary" id="modal-new">🗑️ Start Fresh</button>
+                            <button class="btn btn-accent" id="modal-restore">✅ Restore</button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(overlay);
+                overlay.querySelector('#modal-restore').addEventListener('click', () => {
+                    overlay.remove();
+                    resolve(true);
+                });
+                overlay.querySelector('#modal-new').addEventListener('click', () => {
+                    overlay.remove();
+                    resolve(false);
+                });
+            });
+        }
+
         // --- State ---
         let state;
-        const savedState = Storage.loadState(roomName);
-        if (savedState && savedState.roomName === roomName) {
-            state = GameState.fromJSON(savedState);
-            // Mark all players as disconnected (they need to reconnect)
-            for (const p of Object.values(state.players)) {
-                p.connected = false;
-            }
-            state.dmNick = dmNick;
-            state.dmAvatar = dmAvatar;
-            showBanner('Restoring previous session...', 'recovering');
-            setTimeout(() => hideBanner(), 3000);
-        } else {
-            state = GameState.create(roomName, dmNick, dmAvatar);
-        }
-
-        // DM's own table for dice rolls
-        if (!state.dmTable) state.dmTable = [];
         let dmAutoclear = true; // Default: replace rolls
 
-        // --- Connection ---
-        const host = Connection.createHost(roomName, {
-            onOpen: (id) => {
-                state.dmPeerId = id;
-                setStatus('online', 'Connected');
-                Storage.saveState(roomName, state);
-                renderAll();
-            },
-            onPlayerConnected: (peerId) => {
-                // Wait for PLAYER_INFO message
-                console.log('[DM] Awaiting player info from:', peerId);
-            },
-            onPlayerDisconnected: (peerId) => {
-                const player = state.players[peerId];
-                if (player) {
-                    console.log(`[DM] Player disconnected: ${player.nick}`);
-                    GameState.removePlayer(state, peerId);
-                    Storage.saveState(roomName, state);
-                    host.broadcast(Protocol.createPlayerLeft(peerId, player.nick));
-                    broadcastPlayerList();
-                    renderAll();
+        async function initSession() {
+            const savedState = Storage.loadState(roomName);
+            if (savedState && savedState.roomName === roomName) {
+                const playerCount = Object.keys(savedState.players || {}).length;
+                const shouldRestore = await showRestoreModal(playerCount);
+                if (shouldRestore) {
+                    state = GameState.fromJSON(savedState);
+                    for (const p of Object.values(state.players)) {
+                        p.connected = false;
+                    }
+                    state.dmNick = dmNick;
+                    state.dmAvatar = dmAvatar;
+                    showBanner('Restoring previous session...', 'recovering');
+                    setTimeout(() => hideBanner(), 3000);
+                } else {
+                    state = GameState.create(roomName, dmNick, dmAvatar);
+                    Storage.clearState(roomName);
                 }
-            },
-            onMessage: (peerId, msg) => {
-                handleMessage(peerId, msg);
-            },
-            onError: (err) => {
-                console.error('[DM] Error:', err);
-                setStatus('offline', 'Error');
-                showBanner(err.message || 'Connection error', 'error');
-            },
-        });
-
-        host.start();
-
-        // --- Message Handling ---
-        function handleMessage(peerId, msg) {
-            if (!Protocol.isValidMessage(msg)) return;
-
-            switch (msg.type) {
-                case Protocol.MSG.PLAYER_INFO:
-                    handlePlayerInfo(peerId, msg);
-                    break;
-                case Protocol.MSG.ROLL_REQUEST:
-                    handleRollRequest(peerId, msg);
-                    break;
-                case Protocol.MSG.CLEAR_MY_TABLE:
-                    handleClearMyTable(peerId);
-                    break;
-                default:
-                    console.warn('[DM] Unknown message type:', msg.type);
+            } else {
+                state = GameState.create(roomName, dmNick, dmAvatar);
             }
+
+            // DM's own table for dice rolls
+            if (!state.dmTable) state.dmTable = [];
+
+            startGame();
         }
 
-        function handlePlayerInfo(peerId, msg) {
-            const nick = msg.nick || 'Player';
-            const avatarData = msg.avatarData;
+        function startGame() {
+            // --- Connection ---
+            const host = Connection.createHost(roomName, {
+                onOpen: (id) => {
+                    state.dmPeerId = id;
+                    setStatus('online', 'Connected');
+                    Storage.saveState(roomName, state);
+                    renderAll();
+                },
+                onPlayerConnected: (peerId) => {
+                    // Wait for PLAYER_INFO message
+                    console.log('[DM] Awaiting player info from:', peerId);
+                },
+                onPlayerDisconnected: (peerId) => {
+                    const player = state.players[peerId];
+                    if (player) {
+                        console.log(`[DM] Player disconnected: ${player.nick}`);
+                        GameState.removePlayer(state, peerId);
+                        Storage.saveState(roomName, state);
+                        host.broadcast(Protocol.createPlayerLeft(peerId, player.nick));
+                        broadcastPlayerList();
+                        renderAll();
+                    }
+                },
+                onMessage: (peerId, msg) => {
+                    handleMessage(peerId, msg);
+                },
+                onError: (err) => {
+                    console.error('[DM] Error:', err);
+                    setStatus('offline', 'Error');
+                    showBanner(err.message || 'Connection error', 'error');
+                },
+            });
 
-            // Enforce unique nicknames: reject if a connected player has the same nick
-            for (const [existingId, existingPlayer] of Object.entries(state.players)) {
-                if (existingPlayer.nick === nick && existingPlayer.connected && existingId !== peerId) {
-                    console.log(`[DM] Rejected player: nick "${nick}" already taken by ${existingId}`);
+            host.start();
+
+            // --- Message Handling ---
+            function handleMessage(peerId, msg) {
+                if (!Protocol.isValidMessage(msg)) return;
+
+                switch (msg.type) {
+                    case Protocol.MSG.PLAYER_INFO:
+                        handlePlayerInfo(peerId, msg);
+                        break;
+                    case Protocol.MSG.ROLL_REQUEST:
+                        handleRollRequest(peerId, msg);
+                        break;
+                    case Protocol.MSG.CLEAR_MY_TABLE:
+                        handleClearMyTable(peerId);
+                        break;
+                    default:
+                        console.warn('[DM] Unknown message type:', msg.type);
+                }
+            }
+
+            function handlePlayerInfo(peerId, msg) {
+                const nick = msg.nick || 'Player';
+                const avatarData = msg.avatarData;
+
+                // Enforce unique nicknames: reject if a connected player has the same nick
+                for (const [existingId, existingPlayer] of Object.entries(state.players)) {
+                    if (existingPlayer.nick === nick && existingPlayer.connected && existingId !== peerId) {
+                        console.log(`[DM] Rejected player: nick "${nick}" already taken by ${existingId}`);
+                        host.sendTo(peerId, Protocol.createNickTaken(nick));
+                        return;
+                    }
+                }
+                // Also check against DM nick
+                if (nick === dmNick) {
+                    console.log(`[DM] Rejected player: nick "${nick}" is the DM's nick`);
                     host.sendTo(peerId, Protocol.createNickTaken(nick));
                     return;
                 }
-            }
-            // Also check against DM nick
-            if (nick === dmNick) {
-                console.log(`[DM] Rejected player: nick "${nick}" is the DM's nick`);
-                host.sendTo(peerId, Protocol.createNickTaken(nick));
-                return;
-            }
 
-            // Check if this is a reconnecting player
-            const oldPeerId = GameState.reconnectPlayer(state, peerId, nick, avatarData);
-            if (oldPeerId) {
-                console.log(`[DM] Player reconnected: ${nick} (was ${oldPeerId}, now ${peerId})`);
-            } else {
-                GameState.addPlayer(state, peerId, nick, avatarData);
-                console.log(`[DM] New player joined: ${nick} (${peerId})`);
-            }
-
-            Storage.saveState(roomName, state);
-
-            // Send state sync to the new player
-            const playerView = GameState.createPlayerView(state, peerId);
-            host.sendTo(peerId, Protocol.createStateSync(playerView));
-
-            // Broadcast updated player list (with avatars) to everyone
-            broadcastPlayerList();
-
-            // Send avatar updates to the new player for all other players
-            for (const [pid, player] of Object.entries(state.players)) {
-                if (pid !== peerId && player.avatarData) {
-                    host.sendTo(peerId, Protocol.createAvatarUpdate(pid, player.nick, player.avatarData));
+                // Check if this is a reconnecting player
+                const oldPeerId = GameState.reconnectPlayer(state, peerId, nick, avatarData);
+                if (oldPeerId) {
+                    console.log(`[DM] Player reconnected: ${nick} (was ${oldPeerId}, now ${peerId})`);
+                } else {
+                    GameState.addPlayer(state, peerId, nick, avatarData);
+                    console.log(`[DM] New player joined: ${nick} (${peerId})`);
                 }
-            }
 
-            // Send DM avatar to the new player
-            host.sendTo(peerId, Protocol.createAvatarUpdate('dm', dmNick, dmAvatar));
+                Storage.saveState(roomName, state);
 
-            // Broadcast new player's avatar to all other players
-            host.broadcast(Protocol.createPlayerJoined(peerId, nick, avatarData));
+                // Send state sync to the new player
+                const playerView = GameState.createPlayerView(state, peerId);
+                host.sendTo(peerId, Protocol.createStateSync(playerView));
 
-            renderAll();
-        }
+                // Broadcast updated player list (with avatars) to everyone
+                broadcastPlayerList();
 
-        function handleRollRequest(peerId, msg) {
-            if (!Protocol.isValidRollRequest(msg)) return;
-
-            const player = state.players[peerId];
-            if (!player) return;
-
-            // Roll dice on DM side (anti-cheat)
-            const result = Dice.rollMultiple(msg.dice);
-
-            const rollResult = Protocol.createRollResult(
-                peerId,
-                player.nick,
-                result.dice,
-                result.total,
-                msg.visibility,
-                msg.targets
-            );
-
-            // Add to player's table and history
-            GameState.addRoll(state, peerId, rollResult);
-            Storage.saveState(roomName, state);
-
-            // Play sound on DM side
-            Sound.playDiceRoll();
-
-            // Send result to appropriate players
-            if (msg.visibility === Protocol.VISIBILITY.PUBLIC) {
-                host.broadcast(rollResult);
-            } else if (msg.visibility === Protocol.VISIBILITY.PRIVATE) {
-                // Only send to the rolling player (DM already sees everything)
-                host.sendTo(peerId, rollResult);
-            } else if (msg.visibility === Protocol.VISIBILITY.TARGETED) {
-                // Send to targeted players + the roller
-                const recipients = new Set(msg.targets || []);
-                recipients.add(peerId);
-                for (const targetId of recipients) {
-                    host.sendTo(targetId, rollResult);
+                // Send avatar updates to the new player for all other players
+                for (const [pid, player] of Object.entries(state.players)) {
+                    if (pid !== peerId && player.avatarData) {
+                        host.sendTo(peerId, Protocol.createAvatarUpdate(pid, player.nick, player.avatarData));
+                    }
                 }
+
+                // Send DM avatar to the new player
+                host.sendTo(peerId, Protocol.createAvatarUpdate('dm', dmNick, dmAvatar));
+
+                // Broadcast new player's avatar to all other players
+                host.broadcast(Protocol.createPlayerJoined(peerId, nick, avatarData));
+
+                renderAll();
             }
 
-            renderAll();
-        }
+            function handleRollRequest(peerId, msg) {
+                if (!Protocol.isValidRollRequest(msg)) return;
 
-        function handleClearMyTable(peerId) {
-            GameState.clearTable(state, peerId);
-            Storage.saveState(roomName, state);
+                const player = state.players[peerId];
+                if (!player) return;
 
-            // Broadcast includes the requesting player, no separate sendTo needed
-            host.broadcast(Protocol.createTableCleared(peerId));
+                // Roll dice on DM side (anti-cheat)
+                const result = Dice.rollMultiple(msg.dice);
 
-            renderAll();
-        }
+                const rollResult = Protocol.createRollResult(
+                    peerId,
+                    player.nick,
+                    result.dice,
+                    result.total,
+                    msg.visibility,
+                    msg.targets
+                );
 
-        // --- DM Actions ---
-        function dmRoll(diceSpec, visibility, targets) {
-            const result = Dice.rollMultiple(diceSpec);
-            const rollResult = Protocol.createRollResult(
-                'dm',
-                dmNick,
-                result.dice,
-                result.total,
-                visibility,
-                targets
-            );
+                // Add to player's table and history
+                GameState.addRoll(state, peerId, rollResult);
+                Storage.saveState(roomName, state);
 
-            // Add DM roll to DM table (merge or create new)
-            if (dmAutoclear || state.dmTable.length === 0) {
-                if (dmAutoclear) state.dmTable = [];
-                state.dmTable = [Object.assign({}, rollResult, { dice: rollResult.dice.slice() })];
-            } else {
-                const existing = state.dmTable[0];
-                existing.dice = existing.dice.concat(rollResult.dice);
-                existing.total += rollResult.total;
-                existing.timestamp = rollResult.timestamp || Date.now();
-            }
+                // Play sound on DM side
+                Sound.playDiceRoll();
 
-            // Add to history (individual roll)
-            GameState.addDmRoll(state, rollResult);
-            Storage.saveState(roomName, state);
-            Sound.playDiceRoll();
-
-            // Send result based on visibility
-            if (visibility === Protocol.VISIBILITY.PUBLIC) {
-                host.broadcast(rollResult);
-            } else if (visibility === Protocol.VISIBILITY.TARGETED) {
-                const recipients = new Set(targets || []);
-                for (const targetId of recipients) {
-                    host.sendTo(targetId, rollResult);
+                // Send result to appropriate players
+                if (msg.visibility === Protocol.VISIBILITY.PUBLIC) {
+                    host.broadcast(rollResult);
+                } else if (msg.visibility === Protocol.VISIBILITY.PRIVATE) {
+                    // Only send to the rolling player (DM already sees everything)
+                    host.sendTo(peerId, rollResult);
+                } else if (msg.visibility === Protocol.VISIBILITY.TARGETED) {
+                    // Send to targeted players + the roller
+                    const recipients = new Set(msg.targets || []);
+                    recipients.add(peerId);
+                    for (const targetId of recipients) {
+                        host.sendTo(targetId, rollResult);
+                    }
                 }
+
+                renderAll();
             }
-            // PRIVATE: DM only, no need to send
 
-            renderAll();
-        }
-
-        function kickPlayer(peerId) {
-            const player = state.players[peerId];
-            if (!player) return;
-
-            host.sendTo(peerId, Protocol.createPlayerKicked(peerId, player.nick));
-            host.kickPlayer(peerId);
-            GameState.removePlayer(state, peerId);
-            Storage.saveState(roomName, state);
-
-            host.broadcast(Protocol.createPlayerLeft(peerId, player.nick));
-            broadcastPlayerList();
-            renderAll();
-        }
-
-        function clearPlayerTable(peerId) {
-            if (peerId === null) {
-                // Clear all
-                GameState.clearTable(state, null);
-                state.dmTable = [];
-                host.broadcast(Protocol.createTableCleared(null));
-            } else if (peerId === 'dm') {
-                state.dmTable = [];
-            } else {
+            function handleClearMyTable(peerId) {
                 GameState.clearTable(state, peerId);
+                Storage.saveState(roomName, state);
+
+                // Broadcast includes the requesting player, no separate sendTo needed
                 host.broadcast(Protocol.createTableCleared(peerId));
+
+                renderAll();
             }
-            Storage.saveState(roomName, state);
+
+            // --- DM Actions ---
+            function dmRoll(diceSpec, visibility, targets) {
+                const result = Dice.rollMultiple(diceSpec);
+                const rollResult = Protocol.createRollResult(
+                    'dm',
+                    dmNick,
+                    result.dice,
+                    result.total,
+                    visibility,
+                    targets
+                );
+
+                // Add DM roll to DM table (merge or create new)
+                if (dmAutoclear || state.dmTable.length === 0) {
+                    if (dmAutoclear) state.dmTable = [];
+                    state.dmTable = [Object.assign({}, rollResult, { dice: rollResult.dice.slice() })];
+                } else {
+                    const existing = state.dmTable[0];
+                    existing.dice = existing.dice.concat(rollResult.dice);
+                    existing.total += rollResult.total;
+                    existing.timestamp = rollResult.timestamp || Date.now();
+                }
+
+                // Add to history (individual roll)
+                GameState.addDmRoll(state, rollResult);
+                Storage.saveState(roomName, state);
+                Sound.playDiceRoll();
+
+                // Send result based on visibility
+                if (visibility === Protocol.VISIBILITY.PUBLIC) {
+                    host.broadcast(rollResult);
+                } else if (visibility === Protocol.VISIBILITY.TARGETED) {
+                    const recipients = new Set(targets || []);
+                    for (const targetId of recipients) {
+                        host.sendTo(targetId, rollResult);
+                    }
+                }
+                // PRIVATE: DM only, no need to send
+
+                renderAll();
+            }
+
+            function kickPlayer(peerId) {
+                const player = state.players[peerId];
+                if (!player) return;
+
+                host.sendTo(peerId, Protocol.createPlayerKicked(peerId, player.nick));
+                host.kickPlayer(peerId);
+                GameState.removePlayer(state, peerId);
+                Storage.saveState(roomName, state);
+
+                host.broadcast(Protocol.createPlayerLeft(peerId, player.nick));
+                broadcastPlayerList();
+                renderAll();
+            }
+
+            function clearPlayerTable(peerId) {
+                if (peerId === null) {
+                    // Clear all
+                    GameState.clearTable(state, null);
+                    state.dmTable = [];
+                    host.broadcast(Protocol.createTableCleared(null));
+                } else if (peerId === 'dm') {
+                    state.dmTable = [];
+                } else {
+                    GameState.clearTable(state, peerId);
+                    host.broadcast(Protocol.createTableCleared(peerId));
+                }
+                Storage.saveState(roomName, state);
+                renderAll();
+            }
+
+            function clearHistory() {
+                GameState.clearHistory(state);
+                Storage.saveState(roomName, state);
+                host.broadcast(Protocol.createHistoryCleared());
+                renderAll();
+            }
+
+            function broadcastPlayerList() {
+                const playerList = GameState.getPlayerList(state);
+                host.broadcast(Protocol.createPlayerList(playerList));
+            }
+
+            // --- Rendering (throttled) ---
+            function doRenderAll() {
+                renderPlayerPool();
+                renderDiceRoller();
+                renderHistoryPanel();
+                renderDmPanel();
+            }
+
+            const renderAll = UIHelpers.createThrottledRender(doRenderAll);
+
+            function renderPlayerPool() {
+                PlayerPool.render(playerPoolEl, state, {
+                    isDM: true,
+                    myPeerId: 'dm',
+                    onClearTable: clearPlayerTable,
+                });
+            }
+
+            function renderDiceRoller() {
+                const players = GameState.getPlayerList(state);
+                DiceRoller.render(diceRollerEl, {
+                    isDM: true,
+                    players,
+                    autoclear: dmAutoclear,
+                    onRoll: (diceSpec, visibility, targets) => {
+                        dmRoll(diceSpec, visibility, targets);
+                    },
+                    onAutoclearChange: (enabled) => {
+                        dmAutoclear = enabled;
+                    },
+                });
+            }
+
+            function renderHistoryPanel() {
+                HistoryPanel.render(historyPanelEl, state.history, {
+                    isDM: true,
+                    onClear: clearHistory,
+                });
+            }
+
+            function renderDmPanel() {
+                DmPanel.render(dmPanelEl, state, {
+                    onKick: kickPlayer,
+                    onClearTable: clearPlayerTable,
+                    onClearHistory: clearHistory,
+                });
+            }
+
+            // --- UI Setup ---
+            const historyToggle = HistoryPanel.createToggleButton(historyPanelEl);
+            const dmToggle = DmPanel.createToggleButton(dmPanelEl);
+            UIHelpers.setupPanelToolbar(
+                document.querySelector('.game-header-actions'),
+                [historyToggle, dmToggle]
+            );
+
+            UIHelpers.setupSoundToggle(soundToggle);
+
+            // Leave table button
+            document.getElementById('leave-btn').addEventListener('click', () => {
+                if (confirm('Leave the table? All connected players will be disconnected.')) {
+                    host.destroy();
+                    Storage.clearState(roomName);
+                    window.location.href = 'index.html';
+                }
+            });
+
+            // Initial render
             renderAll();
-        }
 
-        function clearHistory() {
-            GameState.clearHistory(state);
-            Storage.saveState(roomName, state);
-            host.broadcast(Protocol.createHistoryCleared());
-            renderAll();
-        }
-
-        function broadcastPlayerList() {
-            const playerList = GameState.getPlayerList(state);
-            host.broadcast(Protocol.createPlayerList(playerList));
-        }
-
-        // --- Rendering (throttled) ---
-        function doRenderAll() {
-            renderPlayerPool();
-            renderDiceRoller();
-            renderHistoryPanel();
-            renderDmPanel();
-        }
-
-        const renderAll = UIHelpers.createThrottledRender(doRenderAll);
-
-        function renderPlayerPool() {
-            PlayerPool.render(playerPoolEl, state, {
-                isDM: true,
-                myPeerId: 'dm',
-                onClearTable: clearPlayerTable,
+            // Save state before unload
+            window.addEventListener('beforeunload', () => {
+                Storage.saveStateNow(roomName, state);
             });
-        }
+        } // end startGame()
 
-        function renderDiceRoller() {
-            const players = GameState.getPlayerList(state);
-            DiceRoller.render(diceRollerEl, {
-                isDM: true,
-                players,
-                autoclear: dmAutoclear,
-                onRoll: (diceSpec, visibility, targets) => {
-                    dmRoll(diceSpec, visibility, targets);
-                },
-                onAutoclearChange: (enabled) => {
-                    dmAutoclear = enabled;
-                },
-            });
-        }
-
-        function renderHistoryPanel() {
-            HistoryPanel.render(historyPanelEl, state.history, {
-                isDM: true,
-                onClear: clearHistory,
-            });
-        }
-
-        function renderDmPanel() {
-            DmPanel.render(dmPanelEl, state, {
-                onKick: kickPlayer,
-                onClearTable: clearPlayerTable,
-                onClearHistory: clearHistory,
-            });
-        }
-
-        // --- UI Setup ---
-        const historyToggle = HistoryPanel.createToggleButton(historyPanelEl);
-        const dmToggle = DmPanel.createToggleButton(dmPanelEl);
-        UIHelpers.setupPanelToolbar(
-            document.querySelector('.game-header-actions'),
-            [historyToggle, dmToggle]
-        );
-
-        UIHelpers.setupSoundToggle(soundToggle);
-
-        // Initial render
-        renderAll();
-
-        // Save state before unload
-        window.addEventListener('beforeunload', () => {
-            Storage.saveStateNow(roomName, state);
-        });
+        // Kick off async session init
+        initSession();
     </script>
 </body>
 

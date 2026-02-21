@@ -25,6 +25,7 @@
                     <span class="status-dot" id="status-dot"></span>
                     <span id="status-text">Connecting...</span>
                 </div>
+                <button class="btn-leave" id="leave-btn" title="Leave table">🚪 Leave</button>
                 <button class="sound-toggle" id="sound-toggle" title="Toggle sound">🔊</button>
             </div>
         </header>
@@ -388,6 +389,14 @@
         );
 
         UIHelpers.setupSoundToggle(soundToggle);
+
+        // Leave table button
+        document.getElementById('leave-btn').addEventListener('click', () => {
+            if (confirm('Leave the table?')) {
+                client.destroy();
+                window.location.href = 'index.html';
+            }
+        });
 
         // Initial render
         renderAll();

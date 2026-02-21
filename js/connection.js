@@ -69,8 +69,9 @@ const Connection = (() => {
             });
 
             peer.on('disconnected', () => {
+                if (destroyed) return;
                 console.warn('[DM] Peer disconnected from signalling, attempting reconnect...');
-                if (!destroyed && peer) {
+                if (peer && !peer.destroyed) {
                     peer.reconnect();
                 }
             });
@@ -162,8 +163,9 @@ const Connection = (() => {
             });
 
             peer.on('disconnected', () => {
+                if (destroyed) return;
                 console.warn('[Player] Peer disconnected from signalling, attempting reconnect...');
-                if (!destroyed && peer) {
+                if (peer && !peer.destroyed) {
                     peer.reconnect();
                 }
             });

@@ -80,6 +80,21 @@ const UIHelpers = (() => {
         };
     }
 
+    /**
+     * Escape HTML characters to prevent XSS.
+     * @param {string} str - The string to escape
+     * @returns {string} Escaped string
+     */
+    function escapeHTML(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
     return {
         setStatus,
         showBanner,
@@ -87,6 +102,7 @@ const UIHelpers = (() => {
         setupSoundToggle,
         setupPanelToolbar,
         createThrottledRender,
+        escapeHTML,
     };
 })();
 

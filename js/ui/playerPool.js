@@ -54,135 +54,93 @@ const PlayerPool = (() => {
 
     function createPlayerCard(playerData, options) {
         const card = document.createElement('div');
-        card.className = 'player-card';
-        if (!playerData.connected) card.classList.add('disconnected');
-        if (playerData.isMe) card.classList.add('is-me');
+        const cardClass = `player-card ${!playerData.connected ? 'disconnected' : ''} ${playerData.isMe ? 'is-me' : ''}`.trim();
+        card.className = cardClass;
 
-        // Header: avatar + name
-        const header = document.createElement('div');
-        header.className = 'player-card-header';
+        const { escapeHTML } = UIHelpers;
+        const nickSafe = escapeHTML(playerData.nick);
+        const dmBadge = playerData.isDM ? `<span class="dm-badge">DM</span>` : '';
+        const offlineBadge = !playerData.connected ? `<span class="status-offline"> (offline)</span>` : '';
 
-        const avatar = document.createElement('div');
-        avatar.className = 'player-avatar';
-        AvatarPicker.renderAvatar(avatar, playerData.avatarData);
-
-        const nameEl = document.createElement('div');
-        nameEl.className = 'player-name';
-        nameEl.textContent = playerData.nick;
-        if (playerData.isDM) {
-            const badge = document.createElement('span');
-            badge.className = 'dm-badge';
-            badge.textContent = 'DM';
-            nameEl.appendChild(badge);
-        }
-        if (!playerData.connected) {
-            const status = document.createElement('span');
-            status.className = 'status-offline';
-            status.textContent = ' (offline)';
-            nameEl.appendChild(status);
-        }
-
-        header.appendChild(avatar);
-        header.appendChild(nameEl);
-        card.appendChild(header);
-
-        // Table: dice results
-        const tableEl = document.createElement('div');
-        tableEl.className = 'player-table';
-
+        let rollsHTML = '';
         if (playerData.table.length === 0) {
-            const empty = document.createElement('div');
-            empty.className = 'table-empty';
-            empty.textContent = 'No dice on table';
-            tableEl.appendChild(empty);
+            rollsHTML = `<div class="table-empty">No dice on table</div>`;
         } else {
-            playerData.table.forEach(roll => {
-                const rollEl = createRollDisplay(roll);
-                tableEl.appendChild(rollEl);
-            });
+            rollsHTML = playerData.table.map(r => createRollDisplayHTML(r)).join('');
         }
 
-        card.appendChild(tableEl);
-
-        // Clear table button
+        let clearBtnHTML = '';
         if (playerData.isMe || options.isDM) {
-            const clearBtn = document.createElement('button');
-            clearBtn.type = 'button';
-            clearBtn.className = 'btn btn-small btn-clear-table';
-            clearBtn.textContent = '🧹 Clear';
-            clearBtn.addEventListener('click', () => {
+            clearBtnHTML = `<button type="button" class="btn btn-small btn-clear-table">🧹 Clear</button>`;
+        }
+
+        card.innerHTML = `
+            <div class="player-card-header">
+                <div class="player-avatar"></div>
+                <div class="player-name">${nickSafe}${dmBadge}${offlineBadge}</div>
+            </div>
+            <div class="player-table">
+                ${rollsHTML}
+            </div>
+            ${clearBtnHTML}
+        `;
+
+        // Render avatar using the existing function on the generated element
+        const avatarEl = card.querySelector('.player-avatar');
+        AvatarPicker.renderAvatar(avatarEl, playerData.avatarData);
+
+        if (playerData.isMe || options.isDM) {
+            const clearBtnEl = card.querySelector('.btn-clear-table');
+            clearBtnEl.addEventListener('click', () => {
                 if (options.onClearTable) options.onClearTable(playerData.peerId);
             });
-            card.appendChild(clearBtn);
         }
 
         return card;
     }
 
-    function createRollDisplay(roll) {
-        const rollEl = document.createElement('div');
-        rollEl.className = 'roll-display';
+    function createRollDisplayHTML(roll) {
+        const { escapeHTML } = UIHelpers;
 
-        // Visibility indicator
+        let visIconHTML = '';
         if (roll.visibility !== 'PUBLIC') {
-            const visIcon = document.createElement('span');
-            visIcon.className = 'roll-visibility';
-            visIcon.textContent = roll.visibility === 'PRIVATE' ? '🔒' : '🎯';
-            visIcon.title = roll.visibility === 'PRIVATE' ? 'Private (DM only)' : 'Targeted';
-            rollEl.appendChild(visIcon);
+            const icon = roll.visibility === 'PRIVATE' ? '🔒' : '🎯';
+            const title = roll.visibility === 'PRIVATE' ? 'Private (DM only)' : 'Targeted';
+            visIconHTML = `<span class="roll-visibility" title="${escapeHTML(title)}">${icon}</span>`;
         }
 
-        // Dice results
-        const diceEl = document.createElement('div');
-        diceEl.className = 'roll-dice';
+        const diceGroupsHTML = roll.dice.map(dieGroup => {
+            const resultsHTML = dieGroup.results.map((result, i) => {
+                let classes = 'die-result';
+                if (Dice.isCriticalHit(result, dieGroup.sides)) classes += ' critical-hit';
+                else if (Dice.isCriticalFail(result)) classes += ' critical-fail';
 
-        roll.dice.forEach(dieGroup => {
-            const groupEl = document.createElement('span');
-            groupEl.className = 'die-group';
+                const prefix = i > 0 ? '<span>, </span>' : '';
+                return `${prefix}<span class="${classes}">${result}</span>`;
+            }).join('');
 
-            const labelEl = document.createElement('span');
-            labelEl.className = 'die-group-label';
-            labelEl.textContent = `${dieGroup.count}d${dieGroup.sides}: `;
-            groupEl.appendChild(labelEl);
+            return `
+                <span class="die-group">
+                    <span class="die-group-label">${dieGroup.count}d${dieGroup.sides}: </span>
+                    ${resultsHTML}
+                </span>
+            `;
+        }).join('');
 
-            dieGroup.results.forEach((result, i) => {
-                if (i > 0) {
-                    const sep = document.createElement('span');
-                    sep.textContent = ', ';
-                    groupEl.appendChild(sep);
-                }
-
-                const resultEl = document.createElement('span');
-                resultEl.className = 'die-result';
-                resultEl.textContent = result;
-
-                // Critical highlighting
-                if (Dice.isCriticalHit(result, dieGroup.sides)) {
-                    resultEl.classList.add('critical-hit');
-                } else if (Dice.isCriticalFail(result)) {
-                    resultEl.classList.add('critical-fail');
-                }
-
-                groupEl.appendChild(resultEl);
-            });
-
-            diceEl.appendChild(groupEl);
-        });
-
-        rollEl.appendChild(diceEl);
-
-        // Total
-        const totalEl = document.createElement('div');
-        totalEl.className = 'roll-total';
-        totalEl.textContent = `= ${roll.total}`;
-        rollEl.appendChild(totalEl);
-
-        return rollEl;
+        return `
+            <div class="roll-display">
+                ${visIconHTML}
+                <div class="roll-dice">
+                    ${diceGroupsHTML}
+                </div>
+                <div class="roll-total">= ${roll.total}</div>
+            </div>
+        `;
     }
 
     return {
         render,
-        createRollDisplay,
+        createRollDisplayHTML,
     };
 })();
 

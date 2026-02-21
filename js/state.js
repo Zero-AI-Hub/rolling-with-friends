@@ -160,6 +160,9 @@ const GameState = (() => {
      * Serialize state to JSON (for localStorage / STATE_SYNC).
      */
     function toJSON(state) {
+        if (typeof structuredClone === 'function') {
+            return structuredClone(state);
+        }
         return JSON.parse(JSON.stringify(state));
     }
 

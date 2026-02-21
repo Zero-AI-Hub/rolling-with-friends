@@ -334,6 +334,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 host.broadcast(Protocol.createTableCleared(null));
             } else if (peerId === 'dm') {
                 state.dmTable = [];
+                host.broadcast(Protocol.createTableCleared('dm'));
             } else {
                 GameState.clearTable(state, peerId);
                 host.broadcast(Protocol.createTableCleared(peerId));

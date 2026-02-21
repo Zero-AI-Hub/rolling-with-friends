@@ -41,7 +41,3 @@ Enhancements:
 - Remember the last visibility setting
 - Add options to enable or disable remembering last roll and remembering last visibility setting
 - Add options so the DM can change what is a critical hit and a critical fail (default is 20 and 1)
-
-
-MISTAKES TO FIX:
-- When not keeping the roll, it clears locally but not for the rest of the people when the DM is rolling

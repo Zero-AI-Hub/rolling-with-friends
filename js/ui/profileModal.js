@@ -21,7 +21,6 @@ const ProfileModal = (() => {
             <div class="modal-card profile-modal">
                 <div class="modal-header">
                     <h3 class="modal-title">⚙️ Profile Settings</h3>
-                    <button type="button" class="btn-close" id="profile-close" title="Close">×</button>
                 </div>
                 <div class="modal-body">
                     <div class="form-group">
@@ -54,7 +53,6 @@ const ProfileModal = (() => {
             selectedAvatar = newAvatar;
         }, currentAvatar);
 
-        const closeBtn = overlay.querySelector('#profile-close');
         const cancelBtn = overlay.querySelector('#profile-cancel');
         const saveBtn = overlay.querySelector('#profile-save');
 
@@ -72,7 +70,6 @@ const ProfileModal = (() => {
             close();
         }
 
-        closeBtn.addEventListener('click', close);
         cancelBtn.addEventListener('click', close);
         saveBtn.addEventListener('click', save);
 

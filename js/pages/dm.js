@@ -155,6 +155,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 case Protocol.MSG.CLEAR_MY_TABLE:
                     handleClearMyTable(peerId);
                     break;
+                case Protocol.MSG.UPDATE_PROFILE:
+                    handleUpdateProfile(peerId, msg);
+                    break;
                 default:
                     console.warn('[DM] Unknown message type:', msg.type);
             }
@@ -263,6 +266,32 @@ document.addEventListener('DOMContentLoaded', () => {
             // Broadcast includes the requesting player, no separate sendTo needed
             host.broadcast(Protocol.createTableCleared(peerId));
 
+            renderAll();
+        }
+
+        function handleUpdateProfile(peerId, msg) {
+            const nick = msg.nick || 'Player';
+
+            // Enforce unique nicknames
+            for (const [existingId, existingPlayer] of Object.entries(state.players)) {
+                if (existingPlayer.nick === nick && existingPlayer.connected && existingId !== peerId) {
+                    console.log(`[DM] Rejected profile update: nick "${nick}" already taken by ${existingId}`);
+                    host.sendTo(peerId, Protocol.createProfileUpdateRejected(nick));
+                    return;
+                }
+            }
+            // Check against DM nick
+            if (nick === dmNick && peerId !== 'dm') {
+                console.log(`[DM] Rejected profile update: nick "${nick}" is the DM's nick`);
+                host.sendTo(peerId, Protocol.createProfileUpdateRejected(nick));
+                return;
+            }
+
+            GameState.updatePlayerProfile(state, peerId, nick, msg.avatarData);
+            Storage.saveState(roomName, state);
+
+            host.broadcast(Protocol.createAvatarUpdate(peerId, nick, msg.avatarData));
+            broadcastPlayerList();
             renderAll();
         }
 
@@ -412,6 +441,32 @@ document.addEventListener('DOMContentLoaded', () => {
         );
 
         UIHelpers.setupSoundToggle(soundToggle);
+
+        document.getElementById('profile-settings-btn').addEventListener('click', () => {
+            ProfileModal.show(dmNick, dmAvatar, (newNick, newAvatar) => {
+                // Check local uniqueness first
+                for (const [existingId, existingPlayer] of Object.entries(state.players)) {
+                    if (existingPlayer.nick === newNick && existingPlayer.connected) {
+                        alert(`The nickname "${newNick}" is already taken by a player.`);
+                        return;
+                    }
+                }
+
+                dmNick = newNick;
+                dmAvatar = newAvatar;
+                GameState.updatePlayerProfile(state, 'dm', newNick, newAvatar);
+
+                // Update session
+                const s = JSON.parse(localStorage.getItem('dice-online-session') || '{}');
+                s.nick = newNick;
+                s.avatar = newAvatar;
+                localStorage.setItem('dice-online-session', JSON.stringify(s));
+
+                Storage.saveState(roomName, state);
+                host.broadcast(Protocol.createAvatarUpdate('dm', dmNick, dmAvatar));
+                renderAll();
+            });
+        });
 
         // Leave table button
         document.getElementById('leave-btn').addEventListener('click', () => {

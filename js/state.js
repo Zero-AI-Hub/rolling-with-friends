@@ -127,6 +127,20 @@ const GameState = (() => {
     }
 
     /**
+     * Update a player's (or DM's) profile details.
+     */
+    function updatePlayerProfile(state, peerId, nick, avatarData) {
+        if (peerId === 'dm') {
+            state.dmNick = nick;
+            state.dmAvatar = avatarData;
+        } else if (state.players[peerId]) {
+            state.players[peerId].nick = nick;
+            state.players[peerId].avatarData = avatarData;
+        }
+        return state;
+    }
+
+    /**
      * Clear the roll history.
      */
     function clearHistory(state) {
@@ -239,6 +253,7 @@ const GameState = (() => {
         fromJSON,
         createPlayerView,
         isRollVisibleTo,
+        updatePlayerProfile,
     };
 })();
 

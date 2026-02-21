@@ -41,3 +41,4 @@ Enhancements:
 - Remember the last visibility setting
 - Add options to enable or disable remembering last roll and remembering last visibility setting
 - Add options so the DM can change what is a critical hit and a critical fail (default is 20 and 1)
+- Add an autoclear option that clears the dice after 30 seconds (the lapse can be configured by the DM and forced by the DM. If not forced the users get to decide if they activate, if forced they can't deactivate it. If the DM forces it, it should be shown as a DM option)

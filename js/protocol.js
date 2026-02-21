@@ -24,6 +24,10 @@ const Protocol = (() => {
         PLAYER_LIST: 'PLAYER_LIST',
         AVATAR_UPDATE: 'AVATAR_UPDATE',
         NICK_TAKEN: 'NICK_TAKEN',
+        PROFILE_UPDATE_REJECTED: 'PROFILE_UPDATE_REJECTED',
+
+        // Player → DM (Settings)
+        UPDATE_PROFILE: 'UPDATE_PROFILE',
 
         // Bidirectional
         PING: 'PING',
@@ -143,6 +147,22 @@ const Protocol = (() => {
         };
     }
 
+    function createUpdateProfile(nick, avatarData) {
+        return {
+            type: MSG.UPDATE_PROFILE,
+            nick,
+            avatarData,
+        };
+    }
+
+    function createProfileUpdateRejected(nick) {
+        return {
+            type: MSG.PROFILE_UPDATE_REJECTED,
+            nick,
+            message: `The nickname "${nick}" is already taken in this room.`,
+        };
+    }
+
     // --- Validation ---
 
     const VALID_MSG_TYPES = new Set(Object.values(MSG));
@@ -185,6 +205,8 @@ const Protocol = (() => {
         createPlayerList,
         createAvatarUpdate,
         createNickTaken,
+        createUpdateProfile,
+        createProfileUpdateRejected,
         isValidMessage,
         isValidDiceSpec,
         isValidRollRequest,

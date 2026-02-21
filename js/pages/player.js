@@ -116,6 +116,9 @@ document.addEventListener('DOMContentLoaded', () => {
             case Protocol.MSG.NICK_TAKEN:
                 handleNickTaken(msg);
                 break;
+            case Protocol.MSG.PROFILE_UPDATE_REJECTED:
+                handleProfileUpdateRejected(msg);
+                break;
             default:
                 console.warn('[Player] Unknown message:', msg.type);
         }
@@ -248,13 +251,30 @@ document.addEventListener('DOMContentLoaded', () => {
             localState.dmNick = msg.nick;
         } else if (localState.players[msg.playerId]) {
             localState.players[msg.playerId].avatarData = msg.avatarData;
+            localState.players[msg.playerId].nick = msg.nick;
         }
+
+        // If it's this player, update session overrides
+        if (msg.playerId === myPeerId) {
+            myNick = msg.nick;
+            myAvatar = msg.avatarData;
+
+            const s = JSON.parse(localStorage.getItem('dice-online-session') || '{}');
+            s.nick = myNick;
+            s.avatar = myAvatar;
+            localStorage.setItem('dice-online-session', JSON.stringify(s));
+        }
+
         renderAll();
     }
 
     function handleNickTaken(msg) {
         alert(msg.message || `The nickname "${msg.nick}" is already taken. Choose a different one.`);
         window.location.href = 'index.html';
+    }
+
+    function handleProfileUpdateRejected(msg) {
+        alert(msg.message || `Profile update rejected: Nickname already taken.`);
     }
 
     // --- Player Actions ---
@@ -329,6 +349,12 @@ document.addEventListener('DOMContentLoaded', () => {
     );
 
     UIHelpers.setupSoundToggle(soundToggle);
+
+    document.getElementById('profile-settings-btn').addEventListener('click', () => {
+        ProfileModal.show(myNick, myAvatar, (newNick, newAvatar) => {
+            client.send(Protocol.createUpdateProfile(newNick, newAvatar));
+        });
+    });
 
     // Leave table button
     document.getElementById('leave-btn').addEventListener('click', () => {

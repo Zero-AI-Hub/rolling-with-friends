@@ -340,9 +340,26 @@ const DiceRoller = (() => {
             queueDisplay.innerHTML = '<span class="queue-empty">Click dice to add to roll...</span>';
             return;
         }
-        queueDisplay.innerHTML = state.rollQueue
-            .map(d => `<span class="queue-item">${d.count}d${d.sides}</span>`)
-            .join('<span class="queue-plus">+</span>');
+        queueDisplay.innerHTML = '';
+        state.rollQueue.forEach((d, index) => {
+            if (index > 0) {
+                const plus = document.createElement('span');
+                plus.className = 'queue-plus';
+                plus.textContent = '+';
+                queueDisplay.appendChild(plus);
+            }
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'queue-item';
+            item.textContent = `${d.count}d${d.sides}`;
+            item.title = 'Click to remove';
+            item.style.cursor = 'pointer';
+            item.addEventListener('click', () => {
+                state.rollQueue.splice(index, 1);
+                updateQueueDisplay(queueDisplay);
+            });
+            queueDisplay.appendChild(item);
+        });
     }
 
     return {

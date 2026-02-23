@@ -26,6 +26,13 @@ const GameState = (() => {
             dmTable: [],  // DM's own dice table
             players: {},   // { peerId: { nick, avatarData, connected, table: [], autoclear: false } }
             history: [],   // [{ playerId, nick, dice, total, visibility, targets, timestamp }]
+            settings: {
+                critHit: 20,
+                critFail: 1,
+                autoclearSeconds: 0, // 0 = disabled
+                forceAutoclear: false,
+                notifyHidden: false,
+            },
             createdAt: Date.now(),
         };
     }
@@ -175,6 +182,14 @@ const GameState = (() => {
     }
 
     /**
+     * Update DM settings in state.
+     */
+    function updateSettings(state, settingsUpdate) {
+        state.settings = { ...state.settings, ...settingsUpdate };
+        return state;
+    }
+
+    /**
      * Clear the roll history.
      */
     function clearHistory(state) {
@@ -254,6 +269,13 @@ const GameState = (() => {
             dmPeerId: json.dmPeerId || null,
             players: json.players || {},
             history: json.history || [],
+            settings: json.settings || {
+                critHit: 20,
+                critFail: 1,
+                autoclearSeconds: 0,
+                forceAutoclear: false,
+                notifyHidden: false,
+            },
             createdAt: json.createdAt || Date.now(),
         };
     }
@@ -311,6 +333,7 @@ const GameState = (() => {
         createPlayerView,
         isRollVisibleTo,
         updatePlayerProfile,
+        updateSettings,
     };
 })();
 

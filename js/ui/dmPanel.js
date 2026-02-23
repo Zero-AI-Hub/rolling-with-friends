@@ -41,6 +41,20 @@ const DmPanel = (() => {
         const roomInfo = document.createElement('div');
         roomInfo.className = 'dm-room-info';
         roomInfo.id = 'dm-room-info-container';
+        roomInfo.addEventListener('click', (e) => {
+            const btn = e.target.closest('.btn-copy-link');
+            if (btn) {
+                const roomName = btn.dataset.room;
+                const path = window.location.pathname;
+                const basePath = path.substring(0, path.lastIndexOf('/'));
+                const url = window.location.origin + basePath + '/index.html?room=' + encodeURIComponent(roomName);
+                navigator.clipboard.writeText(url).then(() => {
+                    const originalText = btn.innerHTML;
+                    btn.innerHTML = '✅ Copied!';
+                    setTimeout(() => btn.innerHTML = originalText, 2000);
+                });
+            }
+        });
         container.appendChild(roomInfo);
 
         // Player list container
@@ -102,7 +116,7 @@ const DmPanel = (() => {
             const connectedCount = Object.values(state.players).filter(p => p.connected).length;
             const totalCount = Object.keys(state.players).length;
             const infoHTML = `
-                <div class="info-row"><span class="info-label">Room:</span> <span class="info-value">${UIHelpers.escapeHTML(state.roomName)}</span></div>
+                <div class="info-row"><span class="info-label">Room:</span> <span class="info-value">${UIHelpers.escapeHTML(state.roomName)} <button type="button" class="btn btn-small btn-secondary btn-copy-link" data-room="${UIHelpers.escapeHTML(state.roomName)}" title="Copy Invite Link">🔗 Link</button></span></div>
                 <div class="info-row"><span class="info-label">Players:</span> <span class="info-value">${connectedCount} / ${totalCount}</span></div>
             `;
             // Simple diffing to avoid needless repaints

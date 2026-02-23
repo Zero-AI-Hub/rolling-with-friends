@@ -22,6 +22,20 @@ document.addEventListener('DOMContentLoaded', () => {
         return name.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
     }
 
+    // Handle invitation links (?room=my-room)
+    const urlParams = new URLSearchParams(window.location.search);
+    const inviteRoom = urlParams.get('room');
+    if (inviteRoom) {
+        const sanitizedInvite = sanitizeRoomName(inviteRoom);
+        const playerRoomInput = document.getElementById('player-room-name');
+        if (playerRoomInput) {
+            playerRoomInput.value = sanitizedInvite;
+            // Optionally focus the nickname field since room is already filled
+            const nickInput = document.getElementById('player-nick');
+            if (nickInput) nickInput.focus();
+        }
+    }
+
     // Create Room
     document.getElementById('create-room-btn').addEventListener('click', () => {
         const roomRaw = document.getElementById('dm-room-name').value.trim();

@@ -42,3 +42,8 @@ Enhancements:
 - Add options to enable or disable remembering last roll and remembering last visibility setting
 - Add options so the DM can change what is a critical hit and a critical fail (default is 20 and 1)
 - Add an autoclear option that clears the dice after 30 seconds (the lapse can be configured by the DM and forced by the DM. If not forced the users get to decide if they activate, if forced they can't deactivate it. If the DM forces it, it should be shown as a DM option)
+- Add an option to join with an invitation link instead of having to write down the room name on the main screen
+- Add a DM configuration so hidden rolls send a notification to all players or not (default is not)
+
+FIXES:
+- Changing the username and profile picture doesn't work for the DM

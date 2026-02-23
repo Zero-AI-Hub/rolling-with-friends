@@ -45,6 +45,60 @@ const DiceRoller = (() => {
         });
         queueSection.appendChild(clearQueueBtn);
 
+        // Gear button + popover for "Keep dice queue" option
+        let keepQueue = false;
+        const gearWrapper = document.createElement('div');
+        gearWrapper.className = 'queue-settings-wrapper';
+
+        const gearBtn = document.createElement('button');
+        gearBtn.type = 'button';
+        gearBtn.className = 'btn-icon queue-settings-btn';
+        gearBtn.title = 'Queue settings';
+        gearBtn.textContent = '⚙️';
+        gearWrapper.appendChild(gearBtn);
+
+        const popover = document.createElement('div');
+        popover.className = 'queue-settings-popover hidden';
+
+        const keepQueueLabel = document.createElement('label');
+        keepQueueLabel.className = 'toggle-switch-label';
+
+        const keepQueueCb = document.createElement('input');
+        keepQueueCb.type = 'checkbox';
+        keepQueueCb.className = 'toggle-switch-input';
+        keepQueueCb.checked = false;
+
+        const keepQueueSlider = document.createElement('span');
+        keepQueueSlider.className = 'toggle-switch-slider';
+
+        const keepQueueText = document.createElement('span');
+        keepQueueText.className = 'toggle-switch-text';
+        keepQueueText.textContent = 'Keep dice queue';
+
+        keepQueueCb.addEventListener('change', () => {
+            keepQueue = keepQueueCb.checked;
+        });
+
+        keepQueueLabel.appendChild(keepQueueCb);
+        keepQueueLabel.appendChild(keepQueueSlider);
+        keepQueueLabel.appendChild(keepQueueText);
+        popover.appendChild(keepQueueLabel);
+        gearWrapper.appendChild(popover);
+
+        gearBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            popover.classList.toggle('hidden');
+        });
+
+        // Close popover on outside click
+        document.addEventListener('click', (e) => {
+            if (!gearWrapper.contains(e.target)) {
+                popover.classList.add('hidden');
+            }
+        });
+
+        queueSection.appendChild(gearWrapper);
+
         container.appendChild(queueSection);
 
         // Dice buttons
@@ -241,9 +295,11 @@ const DiceRoller = (() => {
             const diceSpec = rollQueue.map(d => ({ sides: d.sides, count: d.count }));
             if (options.onRoll) options.onRoll(diceSpec, visibility, targets);
 
-            // Clear queue after rolling
-            rollQueue.length = 0;
-            updateQueueDisplay();
+            // Clear queue after rolling (unless "keep queue" is enabled)
+            if (!keepQueue) {
+                rollQueue.length = 0;
+                updateQueueDisplay();
+            }
         });
 
         controls.appendChild(rollBtn);

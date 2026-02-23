@@ -31,6 +31,7 @@ const Protocol = (() => {
         AVATAR_UPDATE: 'AVATAR_UPDATE',
         NICK_TAKEN: 'NICK_TAKEN',
         PROFILE_UPDATE_REJECTED: 'PROFILE_UPDATE_REJECTED',
+        SYSTEM_MESSAGE: 'SYSTEM_MESSAGE',
 
         // Player → DM (Settings)
         UPDATE_PROFILE: 'UPDATE_PROFILE',
@@ -145,6 +146,13 @@ const Protocol = (() => {
         };
     }
 
+    function createSystemMessage(text) {
+        return {
+            type: MSG.SYSTEM_MESSAGE,
+            text,
+        };
+    }
+
     function createNickTaken(nick) {
         return {
             type: MSG.NICK_TAKEN,
@@ -217,6 +225,7 @@ const Protocol = (() => {
         createNickTaken,
         createUpdateProfile,
         createProfileUpdateRejected,
+        createSystemMessage,
         isValidMessage,
         isValidDiceSpec,
         isValidRollRequest,

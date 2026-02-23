@@ -4,6 +4,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const roomName = session.room;
     let dmNick = session.nick || 'DM';
     let dmAvatar = session.avatar || 'builtin:0';
+    let dmKeepQueue = session.keepQueue || false;
+    let dmRemVis = session.remVis || false;
+    let initRollQueue = session.rollQueue || [];
+    let initVisibility = session.visibility || 'PUBLIC';
 
     if (!roomName) {
         window.location.href = 'index.html';
@@ -76,7 +80,24 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- State ---
     let state;
     let dmAutoclear = true; // Default: replace rolls
-    let dmKeepQueue = false; // Default: clear queue after rolling
+
+    let autoclearTimeout = null;
+
+    function resetAutoclearTimeout() {
+        if (autoclearTimeout) {
+            clearTimeout(autoclearTimeout);
+            autoclearTimeout = null;
+        }
+        if (state.settings && state.settings.autoclearSeconds > 0) {
+            autoclearTimeout = setTimeout(() => {
+                // Call clearPlayerTable(null) to wipe all tables
+                // Need to find a way to invoke it securely if it's declared below
+                // Because initSession is at top, maybe we can just re-evaluate state clearing here
+                // Fortunately clearPlayerTable is hoisted by JS context if it's within the same scope, but it's not.
+                // We'll move resetAutoclearTimeout inside startGame()
+            }, state.settings.autoclearSeconds * 1000);
+        }
+    }
 
     async function initSession() {
         const savedState = Storage.loadState(roomName);
@@ -106,6 +127,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function startGame() {
+        let autoclearTimeout = null;
+
+        function resetAutoclearTimeout() {
+            if (autoclearTimeout) {
+                clearTimeout(autoclearTimeout);
+                autoclearTimeout = null;
+            }
+            if (state.settings && state.settings.autoclearSeconds > 0) {
+                autoclearTimeout = setTimeout(() => {
+                    clearPlayerTable(null);
+                }, state.settings.autoclearSeconds * 1000);
+            }
+        }
+
         // --- Connection ---
         const host = Connection.createHost(roomName, {
             onOpen: (id) => {
@@ -239,6 +274,14 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (msg.visibility === Protocol.VISIBILITY.PRIVATE) {
                 // Only send to the rolling player (DM already sees everything)
                 host.sendTo(peerId, rollResult);
+
+                if (state.settings && state.settings.notifyHidden) {
+                    const notifyMsg = Protocol.createSystemMessage(`🎲 ${player.nick} rolled secretly.`);
+                    // Send to everyone except the roller
+                    for (const pid of Object.keys(state.players)) {
+                        if (pid !== peerId) host.sendTo(pid, notifyMsg);
+                    }
+                }
             } else if (msg.visibility === Protocol.VISIBILITY.TARGETED) {
                 // Send to targeted players + the roller
                 const recipients = new Set(msg.targets || []);
@@ -246,8 +289,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 for (const targetId of recipients) {
                     host.sendTo(targetId, rollResult);
                 }
+
+                if (state.settings && state.settings.notifyHidden) {
+                    const notifyMsg = Protocol.createSystemMessage(`🎲 ${player.nick} made a targeted roll.`);
+                    for (const pid of Object.keys(state.players)) {
+                        if (!recipients.has(pid)) host.sendTo(pid, notifyMsg);
+                    }
+                }
             }
 
+            resetAutoclearTimeout();
             renderAll();
         }
 
@@ -312,9 +363,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 for (const targetId of recipients) {
                     host.sendTo(targetId, rollResult);
                 }
-            }
-            // PRIVATE: DM only, no need to send
 
+                if (state.settings && state.settings.notifyHidden) {
+                    const notifyMsg = Protocol.createSystemMessage(`🎲 The DM made a targeted roll.`);
+                    for (const pid of Object.keys(state.players)) {
+                        if (!recipients.has(pid)) host.sendTo(pid, notifyMsg);
+                    }
+                }
+            } else if (visibility === Protocol.VISIBILITY.PRIVATE) {
+                // PRIVATE: DM only, no need to send rollResult
+                if (state.settings && state.settings.notifyHidden) {
+                    const notifyMsg = Protocol.createSystemMessage(`🎲 The DM rolled secretly.`);
+                    host.broadcast(notifyMsg);
+                }
+            }
+
+            resetAutoclearTimeout();
             renderAll();
         }
 
@@ -386,12 +450,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 players,
                 autoclear: dmAutoclear,
                 keepQueue: dmKeepQueue,
+                rollQueue: initRollQueue,
+                visibility: initVisibility,
                 onRoll: (diceSpec, visibility, targets) => {
                     dmRoll(diceSpec, visibility, targets);
                 },
                 onAutoclearChange: (enabled) => {
                     dmAutoclear = enabled;
                 },
+                onStateChange: (newQueue, newVis) => {
+                    const s = JSON.parse(localStorage.getItem('dice-online-session') || '{}');
+                    s.rollQueue = dmKeepQueue ? newQueue : [];
+                    s.visibility = dmRemVis ? newVis : 'PUBLIC';
+                    localStorage.setItem('dice-online-session', JSON.stringify(s));
+                }
             });
         }
 
@@ -399,6 +471,7 @@ document.addEventListener('DOMContentLoaded', () => {
             HistoryPanel.render(historyPanelEl, state.history, {
                 isDM: true,
                 onClear: clearHistory,
+                state: state,
             });
         }
 
@@ -407,6 +480,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 onKick: kickPlayer,
                 onClearTable: clearPlayerTable,
                 onClearHistory: clearHistory,
+                onSettingsChange: (newSettings) => {
+                    GameState.updateSettings(state, newSettings);
+                    Storage.saveState(roomName, state);
+                    // Update connected players with new settings config (for crits especially)
+                    for (const peerId of Object.keys(state.players)) {
+                        const playerView = GameState.createPlayerView(state, peerId);
+                        host.sendTo(peerId, Protocol.createStateSync(playerView));
+                    }
+                    renderAll();
+                }
             });
         }
 
@@ -425,7 +508,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 nick: dmNick,
                 avatar: dmAvatar,
                 keepQueue: dmKeepQueue,
-                onSave: (newNick, newAvatar) => {
+                remVis: dmRemVis,
+                onSave: (newNick, newAvatar, newKeepQueue, newRemVis) => {
                     // Check local uniqueness first
                     if (GameState.isNickTaken(state, newNick, 'dm')) {
                         alert(`The nickname "${newNick}" is already taken by a player.`);
@@ -434,20 +518,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     dmNick = newNick;
                     dmAvatar = newAvatar;
+                    dmKeepQueue = newKeepQueue;
+                    dmRemVis = newRemVis;
                     GameState.updatePlayerProfile(state, 'dm', newNick, newAvatar);
 
                     // Update session
                     const s = JSON.parse(localStorage.getItem('dice-online-session') || '{}');
                     s.nick = newNick;
                     s.avatar = newAvatar;
+                    s.keepQueue = dmKeepQueue;
+                    s.remVis = dmRemVis;
+                    if (!dmKeepQueue) s.rollQueue = [];
+                    if (!dmRemVis) s.visibility = 'PUBLIC';
                     localStorage.setItem('dice-online-session', JSON.stringify(s));
 
                     Storage.saveState(roomName, state);
                     host.broadcast(Protocol.createAvatarUpdate('dm', dmNick, dmAvatar));
                     renderAll();
-                },
-                onKeepQueueChange: (enabled) => {
-                    dmKeepQueue = enabled;
                 },
             });
         });

@@ -101,6 +101,59 @@ const DmPanel = (() => {
 
         container.appendChild(bulkActions);
 
+        // --- DM Settings ---
+        const settingsContainer = document.createElement('div');
+        settingsContainer.className = 'dm-settings';
+
+        const settingsTitle = document.createElement('h4');
+        settingsTitle.textContent = 'Room Configuration';
+        settingsContainer.appendChild(settingsTitle);
+
+        const settingsGrid = document.createElement('div');
+        settingsGrid.className = 'settings-grid';
+
+        // Critical Hit
+        const wrapCritHit = document.createElement('div');
+        wrapCritHit.className = 'settings-row';
+        wrapCritHit.innerHTML = `<label title="Default is 20">Crit Hit &ge;</label><input type="number" id="dm-set-crithit" class="input-flat" min="2" max="100">`;
+        settingsGrid.appendChild(wrapCritHit);
+
+        // Critical Fail
+        const wrapCritFail = document.createElement('div');
+        wrapCritFail.className = 'settings-row';
+        wrapCritFail.innerHTML = `<label title="Default is 1">Crit Fail &le;</label><input type="number" id="dm-set-critfail" class="input-flat" min="1" max="99">`;
+        settingsGrid.appendChild(wrapCritFail);
+
+        // Autoclear Timeout
+        const wrapAutoclear = document.createElement('div');
+        wrapAutoclear.className = 'settings-row';
+        wrapAutoclear.innerHTML = `<label title="Seconds before clearing rolls (0 to disable). Applies after next roll.">Autoclear (s)</label><input type="number" id="dm-set-autoclear" class="input-flat" min="0" max="300">`;
+        settingsGrid.appendChild(wrapAutoclear);
+
+        // Notify Hidden Rolls
+        const wrapNotify = document.createElement('div');
+        wrapNotify.className = 'settings-row';
+        wrapNotify.innerHTML = `<label title="Show notification to players when someone makes a hidden roll"><input type="checkbox" id="dm-set-notify"> Notify hidden rolls</label>`;
+        settingsGrid.appendChild(wrapNotify);
+
+        settingsContainer.appendChild(settingsGrid);
+
+        // Settings event listeners
+        settingsContainer.addEventListener('change', (e) => {
+            if (e.target.tagName !== 'INPUT') return;
+            const newSettings = {
+                critHit: parseInt(document.getElementById('dm-set-crithit').value, 10) || 20,
+                critFail: parseInt(document.getElementById('dm-set-critfail').value, 10) || 1,
+                autoclearSeconds: parseInt(document.getElementById('dm-set-autoclear').value, 10) || 0,
+                notifyHidden: document.getElementById('dm-set-notify').checked
+            };
+            if (container._dmPanelOptions && container._dmPanelOptions.onSettingsChange) {
+                container._dmPanelOptions.onSettingsChange(newSettings);
+            }
+        });
+
+        container.appendChild(settingsContainer);
+
         container._panelInitialized = true;
     }
 

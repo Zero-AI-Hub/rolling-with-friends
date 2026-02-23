@@ -142,7 +142,7 @@ const PlayerPool = (() => {
         if (playerData.table.length === 0) {
             rollsHTML = `<div class="table-empty">No dice on table</div>`;
         } else {
-            rollsHTML = playerData.table.map(r => createRollDisplayHTML(r)).join('');
+            rollsHTML = playerData.table.map(r => createRollDisplayHTML(r, options._stateSnapshot)).join('');
         }
 
         if (card._lastRollsHTML !== rollsHTML) {
@@ -165,11 +165,13 @@ const PlayerPool = (() => {
      */
     function render(container, state, options) {
         init(container);
+        options._stateSnapshot = state; // Pass state down to roll rendering
         update(container, state, options);
     }
 
-    function createRollDisplayHTML(roll) {
+    function createRollDisplayHTML(roll, state) {
         const { escapeHTML } = UIHelpers;
+        const settings = state ? state.settings : { critHit: 20, critFail: 1 };
 
         let visIconHTML = '';
         if (roll.visibility !== 'PUBLIC') {
@@ -181,8 +183,10 @@ const PlayerPool = (() => {
         const diceGroupsHTML = roll.dice.map(dieGroup => {
             const resultsHTML = dieGroup.results.map((result, i) => {
                 let classes = 'die-result';
-                if (Dice.isCriticalHit(result, dieGroup.sides)) classes += ' critical-hit';
-                else if (Dice.isCriticalFail(result)) classes += ' critical-fail';
+
+                // Usually crits are applied to d20s, but we'll apply it across the board based on threshold
+                if (Dice.isCriticalHit(result, dieGroup.sides, settings.critHit)) classes += ' critical-hit';
+                else if (Dice.isCriticalFail(result, settings.critFail)) classes += ' critical-fail';
 
                 const prefix = i > 0 ? '<span>, </span>' : '';
                 return `${prefix}<span class="${classes}">${result}</span>`;

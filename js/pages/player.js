@@ -4,6 +4,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const roomName = session.room;
     let myNick = session.nick || 'Player';
     let myAvatar = session.avatar || 'builtin:0';
+    let keepQueue = session.keepQueue || false;
+    let remVis = session.remVis || false;
+    let initRollQueue = session.rollQueue || [];
+    let initVisibility = session.visibility || 'PUBLIC';
 
     if (!roomName) {
         window.location.href = 'index.html';
@@ -51,7 +55,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     let myPeerId = null;
     let autoclear = true; // Default: replace rolls
-    let keepQueue = false; // Default: clear queue after rolling
     let playerList = []; // [{id, nick}] for targeting
 
     // --- Connection ---
@@ -119,6 +122,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 break;
             case Protocol.MSG.PROFILE_UPDATE_REJECTED:
                 handleProfileUpdateRejected(msg);
+                break;
+            case Protocol.MSG.SYSTEM_MESSAGE:
+                handleSystemMessage(msg);
                 break;
             default:
                 console.warn('[Player] Unknown message:', msg.type);
@@ -276,6 +282,10 @@ document.addEventListener('DOMContentLoaded', () => {
         alert(msg.message || `Profile update rejected: Nickname already taken.`);
     }
 
+    function handleSystemMessage(msg) {
+        showBanner(msg.text, 'info');
+    }
+
     // --- Player Actions ---
     function requestRoll(diceSpec, visibility, targets) {
         // Autoclear: tell DM to clear our table first
@@ -328,16 +338,25 @@ document.addEventListener('DOMContentLoaded', () => {
             players: otherPlayers,
             autoclear,
             keepQueue,
+            rollQueue: initRollQueue,
+            visibility: initVisibility,
             onRoll: requestRoll,
             onAutoclearChange: (enabled) => {
                 autoclear = enabled;
             },
+            onStateChange: (newQueue, newVis) => {
+                const s = JSON.parse(localStorage.getItem('dice-online-session') || '{}');
+                s.rollQueue = keepQueue ? newQueue : [];
+                s.visibility = remVis ? newVis : 'PUBLIC';
+                localStorage.setItem('dice-online-session', JSON.stringify(s));
+            }
         });
     }
 
     function renderHistoryPanel() {
         HistoryPanel.render(historyPanelEl, localState.history, {
             isDM: false,
+            state: localState,
         });
     }
 
@@ -355,11 +374,20 @@ document.addEventListener('DOMContentLoaded', () => {
             nick: myNick,
             avatar: myAvatar,
             keepQueue,
-            onSave: (newNick, newAvatar) => {
+            remVis,
+            onSave: (newNick, newAvatar, newKeepQueue, newRemVis) => {
+                keepQueue = newKeepQueue;
+                remVis = newRemVis;
+
+                const s = JSON.parse(localStorage.getItem('dice-online-session') || '{}');
+                s.keepQueue = keepQueue;
+                s.remVis = remVis;
+                if (!keepQueue) s.rollQueue = [];
+                if (!remVis) s.visibility = 'PUBLIC';
+                localStorage.setItem('dice-online-session', JSON.stringify(s));
+
                 client.send(Protocol.createUpdateProfile(newNick, newAvatar));
-            },
-            onKeepQueueChange: (enabled) => {
-                keepQueue = enabled;
+                renderDiceRoller(); // force toggle updates
             },
         });
     });

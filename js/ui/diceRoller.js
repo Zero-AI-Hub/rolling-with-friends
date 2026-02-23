@@ -8,19 +8,29 @@ const DiceRoller = (() => {
     'use strict';
     const STANDARD_DICE = [2, 4, 6, 8, 10, 12, 20, 100];
 
-    // State kept outside DOM so updates don't wipe it
     const state = {
         initialized: false,
         rollQueue: [],
         currentVisibility: 'PUBLIC',
         keepQueue: false,
         autoclear: true,
+        container: null,
     };
+
+    function notifyStateChange() {
+        if (!state.container) return;
+        const opts = state.container._diceRollerOptions;
+        if (opts && opts.onStateChange) {
+            opts.onStateChange(state.rollQueue, state.currentVisibility);
+        }
+    }
 
     /**
      * Initialize the dice roller UI if not already done.
      */
     function init(container, options) {
+        state.container = container;
+
         if (state.initialized) {
             update(container, options);
             return;
@@ -32,6 +42,12 @@ const DiceRoller = (() => {
         // Initial setup from options
         state.autoclear = options.autoclear === undefined ? true : options.autoclear;
         state.keepQueue = options.keepQueue || false;
+        if (options.rollQueue && Array.isArray(options.rollQueue)) {
+            state.rollQueue = [...options.rollQueue];
+        }
+        if (options.visibility) {
+            state.currentVisibility = options.visibility;
+        }
 
         // Roll queue display
         const queueSection = document.createElement('div');
@@ -54,6 +70,7 @@ const DiceRoller = (() => {
         clearQueueBtn.addEventListener('click', () => {
             state.rollQueue.length = 0;
             updateQueueDisplay(queueDisplay);
+            notifyStateChange();
         });
         queueSection.appendChild(clearQueueBtn);
 
@@ -69,12 +86,13 @@ const DiceRoller = (() => {
             btn.type = 'button';
             btn.className = 'dice-btn';
             btn.dataset.sides = sides;
-            btn.innerHTML = `<span class="dice-label">d${sides}</span>`;
+            btn.innerHTML = `<img src="img/dice/d${sides}.webp" class="dice-icon" alt="d${sides}">`;
             btn.title = `Add d${sides} to roll`;
 
             btn.addEventListener('click', () => {
                 addToQueue(sides, 1);
                 updateQueueDisplay(queueDisplay);
+                notifyStateChange();
             });
 
             diceFragment.appendChild(btn);
@@ -100,6 +118,7 @@ const DiceRoller = (() => {
                 parsed.forEach(d => addToQueue(d.sides, d.count));
                 customInput.value = '';
                 updateQueueDisplay(queueDisplay);
+                notifyStateChange();
             } else {
                 customInput.classList.add('input-error');
                 setTimeout(() => customInput.classList.remove('input-error'), 800);
@@ -210,6 +229,7 @@ const DiceRoller = (() => {
             if (!currentOptions.keepQueue) {
                 state.rollQueue.length = 0;
                 updateQueueDisplay(queueDisplay);
+                notifyStateChange();
             }
         });
 
@@ -274,6 +294,7 @@ const DiceRoller = (() => {
                 Object.values(visBtns).forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 targetGroup.classList.toggle('hidden', opt.value !== 'TARGETED');
+                notifyStateChange();
             });
             visBtns[opt.value] = btn;
             visBar.appendChild(btn);

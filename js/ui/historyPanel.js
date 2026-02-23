@@ -103,9 +103,10 @@ const HistoryPanel = (() => {
 
         // Items are pushed to the end of history array.
         // We want newest first in the UI, so we prepend them.
+        const settings = options.state ? options.state.settings : { critHit: 20, critFail: 1 };
         for (let i = container._renderedHistoryCount; i < history.length; i++) {
             const roll = history[i];
-            const entry = createHistoryEntry(roll);
+            const entry = createHistoryEntry(roll, settings);
             // Prepend new rolls to the top
             newRolls.prepend(entry);
         }
@@ -114,7 +115,7 @@ const HistoryPanel = (() => {
         container._renderedHistoryCount = history.length;
     }
 
-    function createHistoryEntry(roll) {
+    function createHistoryEntry(roll, settings) {
         const entry = document.createElement('div');
         entry.className = 'history-entry';
 
@@ -156,9 +157,9 @@ const HistoryPanel = (() => {
                 chip.className = 'result-chip';
                 chip.textContent = result;
 
-                if (Dice.isCriticalHit(result, dieGroup.sides)) {
+                if (Dice.isCriticalHit(result, dieGroup.sides, settings.critHit)) {
                     chip.classList.add('critical-hit');
-                } else if (Dice.isCriticalFail(result)) {
+                } else if (Dice.isCriticalFail(result, settings.critFail)) {
                     chip.classList.add('critical-fail');
                 }
 

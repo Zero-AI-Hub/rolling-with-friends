@@ -40,22 +40,29 @@ const Dice = (() => {
     }
 
     /**
-     * Check if a die result is a critical hit (maximum value).
-     * Only meaningful for standard dice (d20 typically).
+     * Check if a die result is a critical hit.
      * @param {number} result
      * @param {number} sides
+     * @param {number} [threshold] - Optional custom threshold
      * @returns {boolean}
      */
-    function isCriticalHit(result, sides) {
+    function isCriticalHit(result, sides, threshold) {
+        if (threshold !== undefined && threshold !== null) {
+            return result >= threshold;
+        }
         return result === sides;
     }
 
     /**
-     * Check if a die result is a critical fail (natural 1).
+     * Check if a die result is a critical fail.
      * @param {number} result
+     * @param {number} [threshold] - Optional custom threshold
      * @returns {boolean}
      */
-    function isCriticalFail(result) {
+    function isCriticalFail(result, threshold) {
+        if (threshold !== undefined && threshold !== null) {
+            return result <= threshold;
+        }
         return result === 1;
     }
 

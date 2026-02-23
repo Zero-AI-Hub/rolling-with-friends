@@ -13,8 +13,8 @@ const ProfileModal = (() => {
      *   - nick: string (current nickname)
      *   - avatar: string (current avatar)
      *   - keepQueue: boolean (current "keep dice queue" state)
-     *   - onSave: function(newNick, newAvatar) — called on profile save
-     *   - onKeepQueueChange: function(enabled)
+     *   - remVis: boolean (current "remember visibility" state)
+     *   - onSave: function(newNick, newAvatar, keepQueue, remVis) — called on profile save
      */
     function show(config) {
         const overlay = document.createElement('div');
@@ -45,7 +45,14 @@ const ProfileModal = (() => {
                             <label class="toggle-switch-label" for="settings-keep-queue">
                                 <input type="checkbox" id="settings-keep-queue" class="toggle-switch-input">
                                 <span class="toggle-switch-slider"></span>
-                                <span class="toggle-switch-text">Keep dice queue after rolling</span>
+                                <span class="toggle-switch-text">Remember last roll</span>
+                            </label>
+                        </div>
+                        <div class="settings-toggle-row">
+                            <label class="toggle-switch-label" for="settings-rem-vis">
+                                <input type="checkbox" id="settings-rem-vis" class="toggle-switch-input">
+                                <span class="toggle-switch-slider"></span>
+                                <span class="toggle-switch-text">Remember last visibility setting</span>
                             </label>
                         </div>
                     </div>
@@ -71,6 +78,9 @@ const ProfileModal = (() => {
         const keepQueueCb = overlay.querySelector('#settings-keep-queue');
         keepQueueCb.checked = !!config.keepQueue;
 
+        const remVisCb = overlay.querySelector('#settings-rem-vis');
+        remVisCb.checked = !!config.remVis;
+
         const cancelBtn = overlay.querySelector('#profile-cancel');
         const saveBtn = overlay.querySelector('#profile-save');
 
@@ -85,11 +95,10 @@ const ProfileModal = (() => {
                 return;
             }
 
-            // Apply profile changes
-            if (config.onSave) config.onSave(newNick, selectedAvatar);
-
-            // Apply dice preference changes
-            if (config.onKeepQueueChange) config.onKeepQueueChange(keepQueueCb.checked);
+            // Apply overall changes
+            if (config.onSave) {
+                config.onSave(newNick, selectedAvatar, keepQueueCb.checked, remVisCb.checked);
+            }
 
             close();
         }

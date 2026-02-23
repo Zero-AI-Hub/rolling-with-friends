@@ -725,10 +725,16 @@ label {
     transform: scale(0.95);
 }
 
-.dice-label {
-    font-weight: 700;
-    font-size: 1rem;
-    color: var(--accent-primary);
+.dice-icon {
+    width: 85%;
+    height: 85%;
+    object-fit: contain;
+    transition: transform var(--transition-fast) ease;
+    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.3));
+}
+
+.dice-btn:hover .dice-icon {
+    transform: scale(1.1);
 }
 
 .custom-dice-group {
@@ -1145,6 +1151,41 @@ label {
     color: var(--text-muted);
     font-style: italic;
     font-size: 0.85rem;
+}
+
+.dm-settings {
+    margin-top: var(--space-default);
+    padding-top: var(--space-default);
+    border-top: 1px solid var(--border);
+}
+
+.dm-settings h4 {
+    margin: 0 0 var(--space-sm) 0;
+    font-size: var(--text-md);
+    color: var(--text-muted);
+}
+
+.settings-grid {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+}
+
+.settings-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.settings-row label {
+    font-size: var(--text-sm);
+    color: var(--text-main);
+    cursor: help;
+}
+
+.settings-row input[type="number"] {
+    width: 60px;
+    padding: var(--space-xs);
 }
 
 .dm-player-row {

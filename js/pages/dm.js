@@ -76,6 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- State ---
     let state;
     let dmAutoclear = true; // Default: replace rolls
+    let dmKeepQueue = false; // Default: clear queue after rolling
 
     async function initSession() {
         const savedState = Storage.loadState(roomName);
@@ -408,11 +409,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 isDM: true,
                 players,
                 autoclear: dmAutoclear,
+                keepQueue: dmKeepQueue,
                 onRoll: (diceSpec, visibility, targets) => {
                     dmRoll(diceSpec, visibility, targets);
-                },
-                onAutoclearChange: (enabled) => {
-                    dmAutoclear = enabled;
                 },
             });
         }
@@ -443,28 +442,40 @@ document.addEventListener('DOMContentLoaded', () => {
         UIHelpers.setupSoundToggle(soundToggle);
 
         document.getElementById('profile-settings-btn').addEventListener('click', () => {
-            ProfileModal.show(dmNick, dmAvatar, (newNick, newAvatar) => {
-                // Check local uniqueness first
-                for (const [existingId, existingPlayer] of Object.entries(state.players)) {
-                    if (existingPlayer.nick === newNick && existingPlayer.connected) {
-                        alert(`The nickname "${newNick}" is already taken by a player.`);
-                        return;
+            ProfileModal.show({
+                nick: dmNick,
+                avatar: dmAvatar,
+                keepQueue: dmKeepQueue,
+                autoclear: dmAutoclear,
+                onSave: (newNick, newAvatar) => {
+                    // Check local uniqueness first
+                    for (const [existingId, existingPlayer] of Object.entries(state.players)) {
+                        if (existingPlayer.nick === newNick && existingPlayer.connected) {
+                            alert(`The nickname "${newNick}" is already taken by a player.`);
+                            return;
+                        }
                     }
-                }
 
-                dmNick = newNick;
-                dmAvatar = newAvatar;
-                GameState.updatePlayerProfile(state, 'dm', newNick, newAvatar);
+                    dmNick = newNick;
+                    dmAvatar = newAvatar;
+                    GameState.updatePlayerProfile(state, 'dm', newNick, newAvatar);
 
-                // Update session
-                const s = JSON.parse(localStorage.getItem('dice-online-session') || '{}');
-                s.nick = newNick;
-                s.avatar = newAvatar;
-                localStorage.setItem('dice-online-session', JSON.stringify(s));
+                    // Update session
+                    const s = JSON.parse(localStorage.getItem('dice-online-session') || '{}');
+                    s.nick = newNick;
+                    s.avatar = newAvatar;
+                    localStorage.setItem('dice-online-session', JSON.stringify(s));
 
-                Storage.saveState(roomName, state);
-                host.broadcast(Protocol.createAvatarUpdate('dm', dmNick, dmAvatar));
-                renderAll();
+                    Storage.saveState(roomName, state);
+                    host.broadcast(Protocol.createAvatarUpdate('dm', dmNick, dmAvatar));
+                    renderAll();
+                },
+                onKeepQueueChange: (enabled) => {
+                    dmKeepQueue = enabled;
+                },
+                onAutoclearChange: (enabled) => {
+                    dmAutoclear = enabled;
+                },
             });
         });
 

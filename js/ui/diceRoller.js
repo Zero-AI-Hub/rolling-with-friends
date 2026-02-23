@@ -14,8 +14,8 @@ const DiceRoller = (() => {
      *   - isDM: boolean
      *   - players: [{id, nick}] (for targeted visibility)
      *   - onRoll: function(diceSpec, visibility, targets)
-     *   - onAutoclearChange: function(enabled)
      *   - autoclear: boolean (initial state)
+     *   - keepQueue: boolean (keep dice queue after rolling)
      */
     function render(container, options) {
         container.innerHTML = '';
@@ -44,60 +44,6 @@ const DiceRoller = (() => {
             updateQueueDisplay();
         });
         queueSection.appendChild(clearQueueBtn);
-
-        // Gear button + popover for "Keep dice queue" option
-        let keepQueue = false;
-        const gearWrapper = document.createElement('div');
-        gearWrapper.className = 'queue-settings-wrapper';
-
-        const gearBtn = document.createElement('button');
-        gearBtn.type = 'button';
-        gearBtn.className = 'btn-icon queue-settings-btn';
-        gearBtn.title = 'Queue settings';
-        gearBtn.textContent = '⚙️';
-        gearWrapper.appendChild(gearBtn);
-
-        const popover = document.createElement('div');
-        popover.className = 'queue-settings-popover hidden';
-
-        const keepQueueLabel = document.createElement('label');
-        keepQueueLabel.className = 'toggle-switch-label';
-
-        const keepQueueCb = document.createElement('input');
-        keepQueueCb.type = 'checkbox';
-        keepQueueCb.className = 'toggle-switch-input';
-        keepQueueCb.checked = false;
-
-        const keepQueueSlider = document.createElement('span');
-        keepQueueSlider.className = 'toggle-switch-slider';
-
-        const keepQueueText = document.createElement('span');
-        keepQueueText.className = 'toggle-switch-text';
-        keepQueueText.textContent = 'Keep dice queue';
-
-        keepQueueCb.addEventListener('change', () => {
-            keepQueue = keepQueueCb.checked;
-        });
-
-        keepQueueLabel.appendChild(keepQueueCb);
-        keepQueueLabel.appendChild(keepQueueSlider);
-        keepQueueLabel.appendChild(keepQueueText);
-        popover.appendChild(keepQueueLabel);
-        gearWrapper.appendChild(popover);
-
-        gearBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            popover.classList.toggle('hidden');
-        });
-
-        // Close popover on outside click
-        document.addEventListener('click', (e) => {
-            if (!gearWrapper.contains(e.target)) {
-                popover.classList.add('hidden');
-            }
-        });
-
-        queueSection.appendChild(gearWrapper);
 
         container.appendChild(queueSection);
 
@@ -238,37 +184,6 @@ const DiceRoller = (() => {
         controls.appendChild(visGroup);
         controls.appendChild(targetGroup);
 
-        // "Keep previous rolls" toggle (inverted autoclear)
-        const keepGroup = document.createElement('div');
-        keepGroup.className = 'keep-rolls-group';
-
-        const keepLabel = document.createElement('label');
-        keepLabel.className = 'toggle-switch-label';
-
-        const keepCb = document.createElement('input');
-        keepCb.type = 'checkbox';
-        keepCb.id = 'keep-rolls-toggle';
-        keepCb.className = 'toggle-switch-input';
-        // autoclear ON means "don't keep" = unchecked
-        keepCb.checked = !(options.autoclear === undefined ? true : options.autoclear);
-
-        const slider = document.createElement('span');
-        slider.className = 'toggle-switch-slider';
-
-        keepCb.addEventListener('change', () => {
-            // checked = keep rolls (autoclear OFF), unchecked = replace (autoclear ON)
-            if (options.onAutoclearChange) options.onAutoclearChange(!keepCb.checked);
-        });
-
-        const keepText = document.createElement('span');
-        keepText.className = 'toggle-switch-text';
-        keepText.textContent = 'Keep previous rolls';
-
-        keepLabel.appendChild(keepCb);
-        keepLabel.appendChild(slider);
-        keepLabel.appendChild(keepText);
-        keepGroup.appendChild(keepLabel);
-        controls.appendChild(keepGroup);
 
         // Roll button
         const rollBtn = document.createElement('button');
@@ -296,7 +211,7 @@ const DiceRoller = (() => {
             if (options.onRoll) options.onRoll(diceSpec, visibility, targets);
 
             // Clear queue after rolling (unless "keep queue" is enabled)
-            if (!keepQueue) {
+            if (!options.keepQueue) {
                 rollQueue.length = 0;
                 updateQueueDisplay();
             }

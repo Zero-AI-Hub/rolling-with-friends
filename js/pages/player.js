@@ -51,6 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     let myPeerId = null;
     let autoclear = true; // Default: replace rolls
+    let keepQueue = false; // Default: clear queue after rolling
     let playerList = []; // [{id, nick}] for targeting
 
     // --- Connection ---
@@ -328,10 +329,8 @@ document.addEventListener('DOMContentLoaded', () => {
             isDM: false,
             players: otherPlayers,
             autoclear,
+            keepQueue,
             onRoll: requestRoll,
-            onAutoclearChange: (enabled) => {
-                autoclear = enabled;
-            },
         });
     }
 
@@ -351,8 +350,20 @@ document.addEventListener('DOMContentLoaded', () => {
     UIHelpers.setupSoundToggle(soundToggle);
 
     document.getElementById('profile-settings-btn').addEventListener('click', () => {
-        ProfileModal.show(myNick, myAvatar, (newNick, newAvatar) => {
-            client.send(Protocol.createUpdateProfile(newNick, newAvatar));
+        ProfileModal.show({
+            nick: myNick,
+            avatar: myAvatar,
+            keepQueue,
+            autoclear,
+            onSave: (newNick, newAvatar) => {
+                client.send(Protocol.createUpdateProfile(newNick, newAvatar));
+            },
+            onKeepQueueChange: (enabled) => {
+                keepQueue = enabled;
+            },
+            onAutoclearChange: (enabled) => {
+                autoclear = enabled;
+            },
         });
     });
 

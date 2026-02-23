@@ -664,49 +664,30 @@ label {
     font-size: 0.85rem;
 }
 
-/* --- Queue Settings (gear popover) --- */
-.queue-settings-wrapper {
-    position: relative;
+/* --- Settings Modal Sections --- */
+.settings-modal {
+    max-width: 440px;
 }
 
-.btn-icon.queue-settings-btn {
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    font-size: 1.1rem;
-    padding: 4px 6px;
-    cursor: pointer;
-    border-radius: var(--radius-sm);
-    transition: all var(--transition-fast);
-    line-height: 1;
-    min-width: auto;
-    opacity: 0.6;
+.settings-section {
+    margin-bottom: var(--space-lg);
 }
 
-.btn-icon.queue-settings-btn:hover {
-    opacity: 1;
-    color: var(--text-primary);
-    background: rgba(255, 255, 255, 0.08);
-    box-shadow: none;
-    transform: none;
+.settings-section:last-child {
+    margin-bottom: 0;
 }
 
-.queue-settings-popover {
-    position: absolute;
-    top: calc(100% + 6px);
-    right: 0;
-    background: var(--bg-panel);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: var(--radius-md);
-    padding: var(--space-sm) var(--space-md);
-    box-shadow: var(--shadow-lg);
-    white-space: nowrap;
-    z-index: 100;
-    animation: fadeSlideDown 0.15s ease-out;
+.settings-section-title {
+    font-family: var(--font-title);
+    color: var(--accent-primary);
+    font-size: 1rem;
+    margin-bottom: var(--space-md);
+    padding-bottom: var(--space-xs);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.queue-settings-popover.hidden {
-    display: none;
+.settings-toggle-row {
+    padding: var(--space-xs) 0;
 }
 
 .dice-grid {
@@ -912,10 +893,7 @@ label {
     font-weight: 500;
 }
 
-.keep-rolls-group {
-    display: flex;
-    align-items: center;
-}
+
 
 /* --- Modern Toggle Switch --- */
 .toggle-switch-label {

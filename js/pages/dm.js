@@ -413,6 +413,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 onRoll: (diceSpec, visibility, targets) => {
                     dmRoll(diceSpec, visibility, targets);
                 },
+                onAutoclearChange: (enabled) => {
+                    dmAutoclear = enabled;
+                },
             });
         }
 
@@ -446,7 +449,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 nick: dmNick,
                 avatar: dmAvatar,
                 keepQueue: dmKeepQueue,
-                autoclear: dmAutoclear,
                 onSave: (newNick, newAvatar) => {
                     // Check local uniqueness first
                     for (const [existingId, existingPlayer] of Object.entries(state.players)) {
@@ -472,9 +474,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
                 onKeepQueueChange: (enabled) => {
                     dmKeepQueue = enabled;
-                },
-                onAutoclearChange: (enabled) => {
-                    dmAutoclear = enabled;
                 },
             });
         });

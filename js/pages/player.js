@@ -331,6 +331,9 @@ document.addEventListener('DOMContentLoaded', () => {
             autoclear,
             keepQueue,
             onRoll: requestRoll,
+            onAutoclearChange: (enabled) => {
+                autoclear = enabled;
+            },
         });
     }
 
@@ -354,15 +357,11 @@ document.addEventListener('DOMContentLoaded', () => {
             nick: myNick,
             avatar: myAvatar,
             keepQueue,
-            autoclear,
             onSave: (newNick, newAvatar) => {
                 client.send(Protocol.createUpdateProfile(newNick, newAvatar));
             },
             onKeepQueueChange: (enabled) => {
                 keepQueue = enabled;
-            },
-            onAutoclearChange: (enabled) => {
-                autoclear = enabled;
             },
         });
     });

@@ -14,6 +14,7 @@ const DiceRoller = (() => {
      *   - isDM: boolean
      *   - players: [{id, nick}] (for targeted visibility)
      *   - onRoll: function(diceSpec, visibility, targets)
+     *   - onAutoclearChange: function(enabled)
      *   - autoclear: boolean (initial state)
      *   - keepQueue: boolean (keep dice queue after rolling)
      */
@@ -35,6 +36,10 @@ const DiceRoller = (() => {
         queueDisplay.id = 'roll-queue';
         queueSection.appendChild(queueDisplay);
 
+        // Persist roll queue across re-renders by storing on the container element
+        if (!container._rollQueue) container._rollQueue = [];
+        const rollQueue = container._rollQueue;
+
         const clearQueueBtn = document.createElement('button');
         clearQueueBtn.type = 'button';
         clearQueueBtn.className = 'btn btn-small btn-secondary';
@@ -50,8 +55,6 @@ const DiceRoller = (() => {
         // Dice buttons
         const diceGrid = document.createElement('div');
         diceGrid.className = 'dice-grid';
-
-        const rollQueue = []; // [{sides, count}]
 
         STANDARD_DICE.forEach(sides => {
             const btn = document.createElement('button');
@@ -184,6 +187,37 @@ const DiceRoller = (() => {
         controls.appendChild(visGroup);
         controls.appendChild(targetGroup);
 
+        // "Keep previous rolls" toggle (inverted autoclear)
+        const keepGroup = document.createElement('div');
+        keepGroup.className = 'keep-rolls-group';
+
+        const keepLabel = document.createElement('label');
+        keepLabel.className = 'toggle-switch-label';
+
+        const keepCb = document.createElement('input');
+        keepCb.type = 'checkbox';
+        keepCb.id = 'keep-rolls-toggle';
+        keepCb.className = 'toggle-switch-input';
+        // autoclear ON means "don't keep" = unchecked
+        keepCb.checked = !(options.autoclear === undefined ? true : options.autoclear);
+
+        const slider = document.createElement('span');
+        slider.className = 'toggle-switch-slider';
+
+        keepCb.addEventListener('change', () => {
+            // checked = keep rolls (autoclear OFF), unchecked = replace (autoclear ON)
+            if (options.onAutoclearChange) options.onAutoclearChange(!keepCb.checked);
+        });
+
+        const keepText = document.createElement('span');
+        keepText.className = 'toggle-switch-text';
+        keepText.textContent = 'Keep previous rolls';
+
+        keepLabel.appendChild(keepCb);
+        keepLabel.appendChild(slider);
+        keepLabel.appendChild(keepText);
+        keepGroup.appendChild(keepLabel);
+        controls.appendChild(keepGroup);
 
         // Roll button
         const rollBtn = document.createElement('button');

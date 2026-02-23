@@ -893,6 +893,10 @@ label {
     font-weight: 500;
 }
 
+.keep-rolls-group {
+    display: flex;
+    align-items: center;
+}
 
 
 /* --- Modern Toggle Switch --- */

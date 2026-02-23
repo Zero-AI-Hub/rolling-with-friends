@@ -2,7 +2,7 @@
  * profileModal.js — Settings modal for Dice Online.
  * 
  * Combines profile settings (nickname/avatar) and game preferences
- * (keep dice queue, keep previous rolls) into a single unified modal.
+ * (keep dice queue) into a single unified modal.
  */
 
 const ProfileModal = (() => {
@@ -12,10 +12,8 @@ const ProfileModal = (() => {
      *   - nick: string (current nickname)
      *   - avatar: string (current avatar)
      *   - keepQueue: boolean (current "keep dice queue" state)
-     *   - autoclear: boolean (current autoclear state)
      *   - onSave: function(newNick, newAvatar) — called on profile save
      *   - onKeepQueueChange: function(enabled)
-     *   - onAutoclearChange: function(enabled)
      */
     function show(config) {
         const overlay = document.createElement('div');
@@ -49,13 +47,6 @@ const ProfileModal = (() => {
                                 <span class="toggle-switch-text">Keep dice queue after rolling</span>
                             </label>
                         </div>
-                        <div class="settings-toggle-row">
-                            <label class="toggle-switch-label" for="settings-keep-rolls">
-                                <input type="checkbox" id="settings-keep-rolls" class="toggle-switch-input">
-                                <span class="toggle-switch-slider"></span>
-                                <span class="toggle-switch-text">Keep previous rolls on table</span>
-                            </label>
-                        </div>
                     </div>
                 </div>
                 <div class="modal-actions">
@@ -75,13 +66,9 @@ const ProfileModal = (() => {
             selectedAvatar = newAvatar;
         }, config.avatar);
 
-        // Set toggle initial states
+        // Set toggle initial state
         const keepQueueCb = overlay.querySelector('#settings-keep-queue');
         keepQueueCb.checked = !!config.keepQueue;
-
-        const keepRollsCb = overlay.querySelector('#settings-keep-rolls');
-        // autoclear ON = don't keep rolls (unchecked), autoclear OFF = keep rolls (checked)
-        keepRollsCb.checked = !(config.autoclear === undefined ? true : config.autoclear);
 
         const cancelBtn = overlay.querySelector('#profile-cancel');
         const saveBtn = overlay.querySelector('#profile-save');
@@ -102,7 +89,6 @@ const ProfileModal = (() => {
 
             // Apply dice preference changes
             if (config.onKeepQueueChange) config.onKeepQueueChange(keepQueueCb.checked);
-            if (config.onAutoclearChange) config.onAutoclearChange(!keepRollsCb.checked);
 
             close();
         }

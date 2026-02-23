@@ -52,6 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
         dmTable: [],
         players: {},
         history: [],
+        settings: { critHit: 20, critFail: 1, autoclearSeconds: 0, forceAutoclear: false, notifyHidden: false },
     };
     let myPeerId = null;
     let autoclear = true; // Default: replace rolls
@@ -141,6 +142,7 @@ document.addEventListener('DOMContentLoaded', () => {
         localState.dmTable = s.dmTable || [];
         localState.players = s.players || {};
         localState.history = s.history || [];
+        localState.settings = s.settings || localState.settings;
 
         renderAll();
     }
@@ -193,7 +195,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function handlePlayerLeft(msg) {
-        delete localState.players[msg.playerId];
+        if (localState.players[msg.playerId]) {
+            localState.players[msg.playerId].connected = false;
+        }
         renderAll();
     }
 
@@ -228,10 +232,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handlePlayerList(msg) {
         playerList = msg.players || [];
-        // Update connection status
+        // Sync local players with the authoritative player list from DM
         for (const p of playerList) {
             if (localState.players[p.id]) {
                 localState.players[p.id].connected = p.connected;
+                localState.players[p.id].nick = p.nick;
+                localState.players[p.id].avatarData = p.avatarData;
+            } else if (p.id !== myPeerId) {
+                // Player exists in DM's list but not locally — add them
+                localState.players[p.id] = {
+                    nick: p.nick,
+                    avatarData: p.avatarData,
+                    connected: p.connected,
+                    table: [],
+                };
+            }
+        }
+        // Remove players from local state that are no longer in the DM's list
+        const activeIds = new Set(playerList.map(p => p.id));
+        for (const id of Object.keys(localState.players)) {
+            if (id !== myPeerId && !activeIds.has(id)) {
+                delete localState.players[id];
             }
         }
         renderAll();

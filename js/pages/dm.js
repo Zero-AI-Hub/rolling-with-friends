@@ -219,8 +219,11 @@ document.addEventListener('DOMContentLoaded', () => {
             // Send DM avatar to the new player
             host.sendTo(peerId, Protocol.createAvatarUpdate('dm', dmNick, dmAvatar));
 
-            // Broadcast new player's avatar to all other players
-            host.broadcast(Protocol.createPlayerJoined(peerId, nick, avatarData));
+            // Notify existing players about the new player (not the joining player, who already got STATE_SYNC)
+            const joinedMsg = Protocol.createPlayerJoined(peerId, nick, avatarData);
+            for (const pid of Object.keys(state.players)) {
+                if (pid !== peerId) host.sendTo(pid, joinedMsg);
+            }
 
             renderAll();
         }

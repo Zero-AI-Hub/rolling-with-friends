@@ -1,0 +1,290 @@
+# Dice Online — Bug Fix Plan
+
+After a thorough read of all 16 JS source files, 3 HTML pages, and test files, here are all the bugs I've identified and the proposed fixes.
+
+---
+
+## Bug 1 — [player.html](file:///home/ivan/Documentos/ai-test-dev/dice-online-static/player.html) is missing the [storage.js](file:///home/ivan/Documentos/ai-test-dev/dice-online-static/js/storage.js) script tag
+
+**Impact**: `Storage` is referenced nowhere on the player side currently, so this is latent. However, it means the player page would break if any future code references `Storage`.
+
+#### [MODIFY] [player.html](file:///home/ivan/Documentos/ai-test-dev/dice-online-static/player.html)
+
+Add `<script src="js/storage.js"></script>` after the [connection.js](file:///home/ivan/Documentos/ai-test-dev/dice-online-static/js/connection.js) line to match [dm.html](file:///home/ivan/Documentos/ai-test-dev/dice-online-static/dm.html).
+
+---
+
+## Bug 2 — [handlePlayerInfo](file:///home/ivan/Documentos/ai-test-dev/dice-online-static/js/pages/dm.js#183-227) broadcasts `PLAYER_JOINED` to ALL players including the joining player
+
+In [dm.js L223](file:///home/ivan/Documentos/ai-test-dev/dice-online-static/js/pages/dm.js#L223), after a new player joins:
+
+```js
+host.broadcast(Protocol.createPlayerJoined(peerId, nick, avatarData));
+```
+
+This [broadcast](file:///home/ivan/Documentos/ai-test-dev/dice-online-static/js/connection.js#90-97) goes to **all** connected peers, **including the player that just joined**. That player then re-adds themselves to `localState.players` in [handlePlayerJoined](file:///home/ivan/Documentos/ai-test-dev/dice-online-static/js/pages/player.js#183-194) (player.js L183-191), creating a duplicate entry. More importantly, the `PLAYER_LIST` broadcast (L210) already sent to everyone at that point contains the new player, so the joining player already knows about themselves.
+
+**But the real issue is the reverse**: when `PLAYER_JOINED` goes to existing players, they correctly add the new player — but the **joining player never receives `PLAYER_JOINED` for the EXISTING players**. They only get a `STATE_SYNC` with the full player list. Look at what happens:
+
+1. Player A is connected.
+2. Player B joins.
+3. DM sends `STATE_SYNC` to Player B → B gets A's data in `localState.players` ✓
+4. DM sends `PLAYER_LIST` to ALL → Player A gets B in the list, but [handlePlayerList](file:///home/ivan/Documentos/ai-test-dev/dice-online-static/js/pages/player.js#229-239) (player.js L229-238) only updates [connected](file:///home/ivan/Documentos/ai-test-dev/dice-online-static/js/pages/player.js#71-75) status — **it doesn't add new players**! Player A only sees B if they already exist in `localState.players`.
+
+So the flow is: `PLAYER_JOINED` is supposed to add the new player to existing clients' `localState.players`. That works. But `PLAYER_LIST` doesn't add new players — it only updates connection status of existing ones. This combo is correct in isolation, **except**:
+- `PLAYER_JOINED` is broadcast AFTER the [broadcastPlayerList()](file:///home/ivan/Documentos/ai-test-dev/dice-online-static/js/pages/dm.js#405-409) call (L210 vs L223). The order matters because [broadcastPlayerList](file:///home/ivan/Documentos/ai-test-dev/dice-online-static/js/pages/dm.js#405-409) fires first, but the joining player doesn't yet exist in other players' `localState.players` at that point, so [handlePlayerList](file:///home/ivan/Documentos/ai-test-dev/dice-online-static/js/pages/player.js#229-239) can't update them. The fix: `PLAYER_JOINED` at L223 should be sent ONLY to existing players, NOT the joining player.
+
+#### [MODIFY] [dm.js](file:///home/ivan/Documentos/ai-test-dev/dice-online-static/js/pages/dm.js#L209-L226)
+
+Replace `host.broadcast(...)` with a loop that skips the joining player's `peerId`:
+
+```diff
+-host.broadcast(Protocol.createPlayerJoined(peerId, nick, avatarData));
++// Send to all EXCEPT the joining player (who already got STATE_SYNC)
++const joinedMsg = Protocol.createPlayerJoined(peerId, nick, avatarData);
++for (const pid of Object.keys(state.players)) {
++    if (pid !== peerId) host.sendTo(pid, joinedMsg);
++}
+```
+
+---
+
+## Bug 3 — DM [dmRoll](file:///home/ivan/Documentos/ai-test-dev/dice-online-static/js/pages/dm.js#315-366) adds the roll to history TWICE
+
+In [dm.js L316-365](file:///home/ivan/Documentos/ai-test-dev/dice-online-static/js/pages/dm.js#L316-L365), [dmRoll](file:///home/ivan/Documentos/ai-test-dev/dice-online-static/js/pages/dm.js#315-366) calls:
+
+1. `GameState.addDmTableRoll(state, rollResult, dmAutoclear)` — this only updates the DM's table, does NOT add to history ✓
+2. `GameState.addDmRoll(state, rollResult)` — this adds to `state.history` ✓
+
+Wait — I re-checked [addDmTableRoll](file:///home/ivan/Documentos/ai-test-dev/dice-online-static/js/state.js#129-146) (state.js L132-145). It does NOT add to history. And [addDmRoll](file:///home/ivan/Documentos/ai-test-dev/dice-online-static/js/state.js#118-128) (L121-127) does. So the DM roll is added to history only once. **This is NOT a bug.** I was wrong.
+
+However, there is a related issue: when a DM rolls PUBLIC dice, both the DM's local render AND the `host.broadcast(rollResult)` fire. On the **player side**, [handleRollResult](file:///home/ivan/Documentos/ai-test-dev/dice-online-static/js/pages/player.js#148-165) adds the roll to `localState.history` (player.js L161). Each player only receives one `ROLL_RESULT`, so this is fine. **No bug here after all.**
+
+~~Removing Bug 3 from the fix list.~~
+
+---
+
+## Bug 4 — Player autoclear race: player clears their table then DM processes the new roll, but the roll result goes to the player AFTER the clear
+
+In [player.js L277-289](file:///home/ivan/Documentos/ai-test-dev/dice-online-static/js/pages/player.js#L277-L289):
+
+```js
+function requestRoll(diceSpec, visibility, targets) {
+    if (autoclear) {
+        client.send({ type: Protocol.MSG.CLEAR_MY_TABLE });
+        if (localState.players[myPeerId]) {
+            localState.players[myPeerId].table = [];
+        }
+    }
+    client.send(Protocol.createRollRequest(diceSpec, visibility, targets));
+}
+```
+
+Then in [dm.js](file:///home/ivan/Documentos/ai-test-dev/dice-online-static/js/pages/dm.js) [handleRollRequest](file:///home/ivan/Documentos/ai-test-dev/dice-online-static/js/pages/dm.js#228-286) (L228-285):
+1. DM processes the roll.
+2. For PUBLIC rolls: `host.broadcast(rollResult)` — this goes to ALL players including the roller.
+3. For PRIVATE rolls: `host.sendTo(peerId, rollResult)` — goes to the roller.
+4. For TARGETED rolls: sends to targeted players + the roller.
+
+On the player side, [handleRollResult](file:///home/ivan/Documentos/ai-test-dev/dice-online-static/js/pages/player.js#148-165) (L148-163) merges the roll into the player's table. **This should work correctly** — the player optimistically clears their local table, then receives the roll result which creates a fresh entry in the empty table. **No bug here.**
+
+However! Look at the **CLEAR_MY_TABLE** handling on the DM side (dm.js L287-295):
+
+```js
+function handleClearMyTable(peerId) {
+    GameState.clearTable(state, peerId);
+    Storage.saveState(roomName, state);
+    host.broadcast(Protocol.createTableCleared(peerId));
+    renderAll();
+}
+```
+
+The DM broadcasts `TABLE_CLEARED` to ALL players. So ALL players clear that player's table in their local state. Then when the roll result comes back, the player's table is already clear, and the roll is added fresh. **This works correctly.** ~~Removing Bug 4.~~
+
+---
+
+## Bug 5 — [handlePlayerList](file:///home/ivan/Documentos/ai-test-dev/dice-online-static/js/pages/player.js#229-239) on player side doesn't add new players, only updates existing ones
+
+This is actually the **core** of the "sometimes new players don't see each other" bug. In [player.js L229-238](file:///home/ivan/Documentos/ai-test-dev/dice-online-static/js/pages/player.js#L229-L238):
+
+```js
+function handlePlayerList(msg) {
+    playerList = msg.players || [];
+    for (const p of playerList) {
+        if (localState.players[p.id]) {
+            localState.players[p.id].connected = p.connected;
+        }
+    }
+    renderAll();
+}
+```
+
+When a `PLAYER_LIST` arrives, it updates the `playerList` variable (used for targeting in dice rolls) and updates [connected](file:///home/ivan/Documentos/ai-test-dev/dice-online-static/js/pages/player.js#71-75) status. But it **doesn't add players that are in `playerList` but missing from `localState.players`**. That means if the `PLAYER_JOINED` message was lost or arrived out of order, players won't appear.
+
+This is the most reliable fix: [handlePlayerList](file:///home/ivan/Documentos/ai-test-dev/dice-online-static/js/pages/player.js#229-239) should also add missing players.
+
+#### [MODIFY] [player.js](file:///home/ivan/Documentos/ai-test-dev/dice-online-static/js/pages/player.js#L229-L238)
+
+```diff
+ function handlePlayerList(msg) {
+     playerList = msg.players || [];
+     for (const p of playerList) {
+         if (localState.players[p.id]) {
+             localState.players[p.id].connected = p.connected;
++            localState.players[p.id].nick = p.nick;
++            localState.players[p.id].avatarData = p.avatarData;
++        } else if (p.id !== myPeerId) {
++            // Player is in the list but not in our local state — add them
++            localState.players[p.id] = {
++                nick: p.nick,
++                avatarData: p.avatarData,
++                connected: p.connected,
++                table: [],
++            };
+         }
+     }
++    // Remove players from localState that are no longer in the list (except self)
++    for (const id of Object.keys(localState.players)) {
++        if (id !== myPeerId && !playerList.find(p => p.id === id)) {
++            delete localState.players[id];
++        }
++    }
+     renderAll();
+ }
+```
+
+---
+
+## Bug 6 — Player side `localState` has no `settings` property
+
+In [playerPool.js L174](file:///home/ivan/Documentos/ai-test-dev/dice-online-static/js/ui/playerPool.js#L172-L174):
+
+```js
+function createRollDisplayHTML(roll, state) {
+    const settings = state ? state.settings : { critHit: 20, critFail: 1 };
+```
+
+On the DM side, `state.settings` exists (populated by `GameState.create`). But on the **player side**, `localState` (player.js L48-55) is defined as:
+
+```js
+let localState = {
+    roomName,
+    dmNick: 'DM',
+    dmAvatar: null,
+    dmTable: [],
+    players: {},
+    history: [],
+};
+```
+
+**No `settings` field!** So `state.settings` is `undefined`, and the fallback `{ critHit: 20, critFail: 1 }` kicks in. This means custom crit thresholds set by the DM won't be reflected on the player side.
+
+Additionally, [handleStateSync](file:///home/ivan/Documentos/ai-test-dev/dice-online-static/js/pages/player.js#134-147) (player.js L134-146) doesn't copy `settings` from the synced state.
+
+#### [MODIFY] [player.js](file:///home/ivan/Documentos/ai-test-dev/dice-online-static/js/pages/player.js#L48-L55)
+
+Add `settings` to `localState`:
+
+```diff
+ let localState = {
+     roomName,
+     dmNick: 'DM',
+     dmAvatar: null,
+     dmTable: [],
+     players: {},
+     history: [],
++    settings: { critHit: 20, critFail: 1, autoclearSeconds: 0, forceAutoclear: false, notifyHidden: false },
+ };
+```
+
+#### [MODIFY] [player.js](file:///home/ivan/Documentos/ai-test-dev/dice-online-static/js/pages/player.js#L134-L146)
+
+```diff
+ function handleStateSync(msg) {
+     const s = msg.state;
+     if (!s) return;
+
+     localState.roomName = s.roomName || roomName;
+     localState.dmNick = s.dmNick || 'DM';
+     localState.dmAvatar = s.dmAvatar;
+     localState.dmTable = s.dmTable || [];
+     localState.players = s.players || {};
+     localState.history = s.history || [];
++    localState.settings = s.settings || localState.settings;
+
+     renderAll();
+ }
+```
+
+---
+
+## Bug 7 — [handlePlayerLeft](file:///home/ivan/Documentos/ai-test-dev/dice-online-static/js/pages/player.js#195-199) deletes players instead of marking them disconnected
+
+In [player.js L195-198](file:///home/ivan/Documentos/ai-test-dev/dice-online-static/js/pages/player.js#L195-L198):
+
+```js
+function handlePlayerLeft(msg) {
+    delete localState.players[msg.playerId];
+    renderAll();
+}
+```
+
+When a player disconnects, the DM sends `PLAYER_LEFT`. The DM keeps the player in its state as `connected: false` (for reconnection), but the player side completely removes them. This means:
+- Other players' cards disappear when someone disconnects
+- If that player reconnects, they'll reappear via `PLAYER_JOINED`, but there's a visual flicker
+
+This should mark as disconnected instead of deleting, to match DM behavior:
+
+#### [MODIFY] [player.js](file:///home/ivan/Documentos/ai-test-dev/dice-online-static/js/pages/player.js#L195-L198)
+
+```diff
+ function handlePlayerLeft(msg) {
+-    delete localState.players[msg.playerId];
++    if (localState.players[msg.playerId]) {
++        localState.players[msg.playerId].connected = false;
++    }
+     renderAll();
+ }
+```
+
+---
+
+## Summary of Changes
+
+| # | File | Bug Summary |
+|---|------|-------------|
+| 1 | [player.html](file:///home/ivan/Documentos/ai-test-dev/dice-online-static/player.html) | Missing [storage.js](file:///home/ivan/Documentos/ai-test-dev/dice-online-static/js/storage.js) script tag |
+| 2 | [dm.js](file:///home/ivan/Documentos/ai-test-dev/dice-online-static/js/pages/dm.js) | `PLAYER_JOINED` broadcast includes the joining player |
+| 3 | [player.js](file:///home/ivan/Documentos/ai-test-dev/dice-online-static/js/pages/player.js) | [handlePlayerList](file:///home/ivan/Documentos/ai-test-dev/dice-online-static/js/pages/player.js#229-239) doesn't add new/missing players |
+| 4 | [player.js](file:///home/ivan/Documentos/ai-test-dev/dice-online-static/js/pages/player.js) | `localState` missing `settings`, [handleStateSync](file:///home/ivan/Documentos/ai-test-dev/dice-online-static/js/pages/player.js#134-147) doesn't copy `settings` |
+| 5 | [player.js](file:///home/ivan/Documentos/ai-test-dev/dice-online-static/js/pages/player.js) | [handlePlayerLeft](file:///home/ivan/Documentos/ai-test-dev/dice-online-static/js/pages/player.js#195-199) deletes player instead of marking disconnected |
+
+---
+
+## Verification Plan
+
+### Automated Tests
+
+Run existing unit tests to make sure nothing is broken:
+
+```bash
+cd /home/ivan/Documentos/ai-test-dev/dice-online-static && node tests/run-node.js
+```
+
+### Manual Verification
+
+Since the bugs are about real-time P2P communication, they require a manual test:
+
+1. Open the app in a browser, create a room as DM
+2. Open another tab/browser, join the same room as a Player
+3. **Test: Player sees themselves and the DM in the player pool** (Bug 2 fix)
+4. **Test: Player rolls dice → the roll appears on the player's table immediately** (verifying no regression)
+5. Open a third tab, join as another Player
+6. **Test: Both existing players see the new player appear** (Bug 3/handlePlayerList fix)
+7. **Test: The new player sees both existing players** (Bug 3 fix)
+8. Close the third tab (disconnect Player 2)
+9. **Test: Player 2's card shows as "offline" instead of disappearing** (Bug 5 fix)
+10. **Test: DM's custom crit thresholds are reflected in player-side roll displays** (Bug 4 fix)
+
+> [!IMPORTANT]
+> Manual testing with multiple browser tabs is required since this is a P2P real-time app. I cannot fully verify the broadcast logic from code alone.

@@ -2,8 +2,8 @@
 document.addEventListener('DOMContentLoaded', () => {
     const session = JSON.parse(localStorage.getItem('dice-online-session') || '{}');
     const roomName = session.room;
-    const dmNick = session.nick || 'DM';
-    const dmAvatar = session.avatar || 'builtin:0';
+    let dmNick = session.nick || 'DM';
+    let dmAvatar = session.avatar || 'builtin:0';
 
     if (!roomName) {
         window.location.href = 'index.html';

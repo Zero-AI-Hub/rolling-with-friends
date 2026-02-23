@@ -7,8 +7,20 @@
 
 const PlayerPool = (() => {
     'use strict';
+
     /**
-     * Render the player pool area.
+     * Initialize the player pool container
+     */
+    function init(container) {
+        if (container._poolInitialized) return;
+
+        container.innerHTML = '';
+        container.classList.add('player-pool');
+        container._poolInitialized = true;
+    }
+
+    /**
+     * Update the player pool area without destroying existing cards.
      * @param {HTMLElement} container
      * @param {object} state - game state
      * @param {object} options
@@ -16,15 +28,12 @@ const PlayerPool = (() => {
      *   - myPeerId: string (for highlighting own card)
      *   - onClearTable: function(peerId) — null for "clear all"
      */
-    function render(container, state, options) {
-        container.innerHTML = '';
-        container.classList.add('player-pool');
+    function update(container, state, options) {
+        // Collect all target data we need to render
+        const targets = new Map();
 
-        // Use DocumentFragment for batch DOM insertion
-        const fragment = document.createDocumentFragment();
-
-        // DM card
-        const dmCard = createPlayerCard({
+        // DM card data
+        targets.set('dm', {
             peerId: 'dm',
             nick: state.dmNick,
             avatarData: state.dmAvatar,
@@ -32,12 +41,11 @@ const PlayerPool = (() => {
             isDM: true,
             isMe: options.isDM,
             connected: true,
-        }, options);
-        fragment.appendChild(dmCard);
+        });
 
-        // Player cards
+        // Player cards data
         for (const [peerId, player] of Object.entries(state.players)) {
-            const card = createPlayerCard({
+            targets.set(peerId, {
                 peerId,
                 nick: player.nick,
                 avatarData: player.avatarData,
@@ -46,23 +54,90 @@ const PlayerPool = (() => {
                 isMe: peerId === options.myPeerId,
                 connected: player.connected,
                 autoclear: player.autoclear,
-            }, options);
+            });
+        }
+
+        // Remove cards that are no longer in the state
+        const currentCards = Array.from(container.children);
+        currentCards.forEach(card => {
+            const peerId = card.dataset.peerId;
+            if (!targets.has(peerId)) {
+                card.remove();
+            }
+        });
+
+        // Add or update cards
+        // Use DocumentFragment for appending new ones to minimize reflows
+        const fragment = document.createDocumentFragment();
+
+        // Ensure DM is always first
+        const dmData = targets.get('dm');
+        updateOrCreateCard(container, fragment, dmData, options);
+        targets.delete('dm');
+
+        // Then rest of players
+        for (const playerData of targets.values()) {
+            updateOrCreateCard(container, fragment, playerData, options);
+        }
+
+        if (fragment.children.length > 0) {
+            container.appendChild(fragment);
+        }
+    }
+
+    function updateOrCreateCard(container, fragment, playerData, options) {
+        let card = container.querySelector(`.player-card[data-peer-id="${playerData.peerId}"]`);
+
+        if (!card) {
+            // Create new
+            card = document.createElement('div');
+            card.dataset.peerId = playerData.peerId;
+            card.className = 'player-card';
+
+            card.innerHTML = `
+                <div class="player-card-header">
+                    <div class="player-avatar"></div>
+                    <div class="player-name"></div>
+                </div>
+                <div class="player-table"></div>
+                <button type="button" class="btn btn-small btn-clear-table hidden">🧹 Clear</button>
+            `;
+
+            // Clear button listener (only attached once)
+            const clearBtnEl = card.querySelector('.btn-clear-table');
+            clearBtnEl.addEventListener('click', () => {
+                if (options.onClearTable) options.onClearTable(playerData.peerId);
+            });
+
             fragment.appendChild(card);
         }
 
-        container.appendChild(fragment);
-    }
+        // Update classes
+        const classList = ['player-card'];
+        if (!playerData.connected) classList.push('disconnected');
+        if (playerData.isMe) classList.push('is-me');
+        card.className = classList.join(' ');
 
-    function createPlayerCard(playerData, options) {
-        const card = document.createElement('div');
-        const cardClass = `player-card ${!playerData.connected ? 'disconnected' : ''} ${playerData.isMe ? 'is-me' : ''}`.trim();
-        card.className = cardClass;
-
+        // Update Content
         const { escapeHTML } = UIHelpers;
         const nickSafe = escapeHTML(playerData.nick);
         const dmBadge = playerData.isDM ? `<span class="dm-badge">DM</span>` : '';
         const offlineBadge = !playerData.connected ? `<span class="status-offline"> (offline)</span>` : '';
 
+        const nameEl = card.querySelector('.player-name');
+        nameEl.innerHTML = `${nickSafe}${dmBadge}${offlineBadge}`;
+
+        // Update Avatar
+        const avatarEl = card.querySelector('.player-avatar');
+        // Simple diff check for avatar to avoid rebuilding if identical
+        const avatarStr = JSON.stringify(playerData.avatarData);
+        if (card._lastAvatarStr !== avatarStr) {
+            AvatarPicker.renderAvatar(avatarEl, playerData.avatarData);
+            card._lastAvatarStr = avatarStr;
+        }
+
+        // Update Rolls
+        const tableEl = card.querySelector('.player-table');
         let rollsHTML = '';
         if (playerData.table.length === 0) {
             rollsHTML = `<div class="table-empty">No dice on table</div>`;
@@ -70,34 +145,27 @@ const PlayerPool = (() => {
             rollsHTML = playerData.table.map(r => createRollDisplayHTML(r)).join('');
         }
 
-        let clearBtnHTML = '';
-        if (playerData.isMe || options.isDM) {
-            clearBtnHTML = `<button type="button" class="btn btn-small btn-clear-table">🧹 Clear</button>`;
+        if (card._lastRollsHTML !== rollsHTML) {
+            tableEl.innerHTML = rollsHTML;
+            card._lastRollsHTML = rollsHTML;
         }
 
-        card.innerHTML = `
-            <div class="player-card-header">
-                <div class="player-avatar"></div>
-                <div class="player-name">${nickSafe}${dmBadge}${offlineBadge}</div>
-            </div>
-            <div class="player-table">
-                ${rollsHTML}
-            </div>
-            ${clearBtnHTML}
-        `;
-
-        // Render avatar using the existing function on the generated element
-        const avatarEl = card.querySelector('.player-avatar');
-        AvatarPicker.renderAvatar(avatarEl, playerData.avatarData);
-
+        // Update Clear Button Visibility
+        const clearBtnEl = card.querySelector('.btn-clear-table');
         if (playerData.isMe || options.isDM) {
-            const clearBtnEl = card.querySelector('.btn-clear-table');
-            clearBtnEl.addEventListener('click', () => {
-                if (options.onClearTable) options.onClearTable(playerData.peerId);
-            });
+            clearBtnEl.classList.remove('hidden');
+        } else {
+            clearBtnEl.classList.add('hidden');
         }
+    }
 
-        return card;
+    /**
+     * Render entry point for backward compatibility.
+     * Delegates to init/update.
+     */
+    function render(container, state, options) {
+        init(container);
+        update(container, state, options);
     }
 
     function createRollDisplayHTML(roll) {

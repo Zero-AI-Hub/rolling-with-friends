@@ -6,6 +6,7 @@
  */
 
 const Sound = (() => {
+    'use strict';
     let audioContext = null;
     let diceBuffer = null;
     let loaded = false;

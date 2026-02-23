@@ -6,6 +6,7 @@
  */
 
 const UIHelpers = (() => {
+    'use strict';
     /**
      * Update the connection status indicator.
      * @param {HTMLElement} dotEl - The status dot element

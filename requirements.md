@@ -32,11 +32,9 @@ Some extra details:
 
 Enhancements:
 - Add multiple languages
-- Be able to change user name and profile picture
 - Add dice picture to buttons
 - Improve roll aesthetics
 - Improve redability by having rolls of different die sizes ordered vertically
-- Remember the last kind of dice rolled so the user can just press the button to roll again
 - Let clear just one kind of die clicking on them on the roll queue
 - Remember the last visibility setting
 - Add options to enable or disable remembering last roll and remembering last visibility setting
@@ -44,6 +42,3 @@ Enhancements:
 - Add an autoclear option that clears the dice after 30 seconds (the lapse can be configured by the DM and forced by the DM. If not forced the users get to decide if they activate, if forced they can't deactivate it. If the DM forces it, it should be shown as a DM option)
 - Add an option to join with an invitation link instead of having to write down the room name on the main screen
 - Add a DM configuration so hidden rolls send a notification to all players or not (default is not)
-
-FIXES:
-- Changing the username and profile picture doesn't work for the DM

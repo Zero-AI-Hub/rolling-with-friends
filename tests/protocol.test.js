@@ -139,4 +139,30 @@
             expect(Proto.isValidRollRequest({ type: 'ROLL_REQUEST', dice: [], visibility: 'PUBLIC' })).toBeFalse();
         });
     });
+
+    describe('Protocol — max dice limits', () => {
+        it('should reject dice count exceeding MAX_DICE_PER_GROUP', () => {
+            expect(Proto.isValidDiceSpec([{ sides: 6, count: Proto.MAX_DICE_PER_GROUP + 1 }])).toBeFalse();
+        });
+
+        it('should accept dice count at MAX_DICE_PER_GROUP', () => {
+            expect(Proto.isValidDiceSpec([{ sides: 6, count: Proto.MAX_DICE_PER_GROUP }])).toBeTrue();
+        });
+
+        it('should reject more groups than MAX_DICE_GROUPS', () => {
+            const manyGroups = [];
+            for (let i = 0; i < Proto.MAX_DICE_GROUPS + 1; i++) {
+                manyGroups.push({ sides: 6, count: 1 });
+            }
+            expect(Proto.isValidDiceSpec(manyGroups)).toBeFalse();
+        });
+
+        it('should accept exactly MAX_DICE_GROUPS groups', () => {
+            const groups = [];
+            for (let i = 0; i < Proto.MAX_DICE_GROUPS; i++) {
+                groups.push({ sides: 6, count: 1 });
+            }
+            expect(Proto.isValidDiceSpec(groups)).toBeTrue();
+        });
+    });
 })();

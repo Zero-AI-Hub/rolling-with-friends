@@ -222,4 +222,110 @@
             expect(view.history).toHaveLength(1);
         });
     });
+
+    describe('GameState - history cap', () => {
+        it('should cap history at MAX_HISTORY entries', () => {
+            const s = State.create('room', 'DM', null);
+            State.addPlayer(s, 'peer-1', 'A', null);
+
+            for (let i = 0; i < State.MAX_HISTORY + 50; i++) {
+                const roll = { dice: [{ sides: 6, count: 1, results: [3] }], total: 3, visibility: 'PUBLIC' };
+                State.addRoll(s, 'peer-1', roll);
+            }
+
+            expect(s.history.length).toBeLessThanOrEqual(State.MAX_HISTORY);
+        });
+
+        it('should cap history via addDmRoll too', () => {
+            const s = State.create('room', 'DM', null);
+
+            for (let i = 0; i < State.MAX_HISTORY + 20; i++) {
+                State.addDmRoll(s, { dice: [], total: 1 });
+            }
+
+            expect(s.history.length).toBeLessThanOrEqual(State.MAX_HISTORY);
+        });
+    });
+
+    describe('GameState.addDmTableRoll', () => {
+        it('should create a new DM table entry when empty', () => {
+            const s = State.create('room', 'DM', null);
+            const roll = { dice: [{ sides: 20, count: 1, results: [15] }], total: 15 };
+            State.addDmTableRoll(s, roll, false);
+            expect(s.dmTable).toHaveLength(1);
+            expect(s.dmTable[0].total).toBe(15);
+        });
+
+        it('should merge rolls when autoclear is false', () => {
+            const s = State.create('room', 'DM', null);
+            const roll1 = { dice: [{ sides: 20, count: 1, results: [15] }], total: 15 };
+            State.addDmTableRoll(s, roll1, false);
+
+            const roll2 = { dice: [{ sides: 6, count: 2, results: [3, 4] }], total: 7 };
+            State.addDmTableRoll(s, roll2, false);
+
+            expect(s.dmTable).toHaveLength(1);
+            expect(s.dmTable[0].total).toBe(22);
+            expect(s.dmTable[0].dice).toHaveLength(2);
+        });
+
+        it('should replace table when autoclear is true', () => {
+            const s = State.create('room', 'DM', null);
+            const roll1 = { dice: [{ sides: 20, count: 1, results: [15] }], total: 15 };
+            State.addDmTableRoll(s, roll1, false);
+
+            const roll2 = { dice: [{ sides: 6, count: 1, results: [4] }], total: 4 };
+            State.addDmTableRoll(s, roll2, true);
+
+            expect(s.dmTable).toHaveLength(1);
+            expect(s.dmTable[0].total).toBe(4);
+            expect(s.dmTable[0].dice).toHaveLength(1);
+        });
+    });
+
+    describe('GameState.clearDmTable', () => {
+        it('should clear the DM table', () => {
+            const s = State.create('room', 'DM', null);
+            s.dmTable = [{ total: 10 }];
+            State.clearDmTable(s);
+            expect(s.dmTable).toHaveLength(0);
+        });
+    });
+
+    describe('GameState.isNickTaken', () => {
+        it('should return true if nick matches DM', () => {
+            const s = State.create('room', 'DungeonMaster', null);
+            expect(State.isNickTaken(s, 'DungeonMaster', null)).toBeTrue();
+        });
+
+        it('should return false if nick matches DM but excludePeerId is dm', () => {
+            const s = State.create('room', 'DungeonMaster', null);
+            expect(State.isNickTaken(s, 'DungeonMaster', 'dm')).toBeFalse();
+        });
+
+        it('should return true if nick matches connected player', () => {
+            const s = State.create('room', 'DM', null);
+            State.addPlayer(s, 'peer-1', 'Gandalf', null);
+            expect(State.isNickTaken(s, 'Gandalf', 'peer-2')).toBeTrue();
+        });
+
+        it('should return false if nick matches disconnected player', () => {
+            const s = State.create('room', 'DM', null);
+            State.addPlayer(s, 'peer-1', 'Gandalf', null);
+            State.disconnectPlayer(s, 'peer-1');
+            expect(State.isNickTaken(s, 'Gandalf', 'peer-2')).toBeFalse();
+        });
+
+        it('should return false if excludePeerId matches the player', () => {
+            const s = State.create('room', 'DM', null);
+            State.addPlayer(s, 'peer-1', 'Gandalf', null);
+            expect(State.isNickTaken(s, 'Gandalf', 'peer-1')).toBeFalse();
+        });
+
+        it('should return false for unique nick', () => {
+            const s = State.create('room', 'DM', null);
+            State.addPlayer(s, 'peer-1', 'Gandalf', null);
+            expect(State.isNickTaken(s, 'Frodo', null)).toBeFalse();
+        });
+    });
 })();

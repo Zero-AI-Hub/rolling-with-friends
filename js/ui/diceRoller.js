@@ -5,6 +5,7 @@
  */
 
 const DiceRoller = (() => {
+    'use strict';
     const STANDARD_DICE = [2, 4, 6, 8, 10, 12, 20, 100];
 
     /**
@@ -55,6 +56,7 @@ const DiceRoller = (() => {
         // Dice buttons
         const diceGrid = document.createElement('div');
         diceGrid.className = 'dice-grid';
+        const diceFragment = document.createDocumentFragment();
 
         STANDARD_DICE.forEach(sides => {
             const btn = document.createElement('button');
@@ -69,7 +71,7 @@ const DiceRoller = (() => {
                 updateQueueDisplay();
             });
 
-            diceGrid.appendChild(btn);
+            diceFragment.appendChild(btn);
         });
 
         // Custom dice input
@@ -104,7 +106,8 @@ const DiceRoller = (() => {
 
         customGroup.appendChild(customInput);
         customGroup.appendChild(customBtn);
-        diceGrid.appendChild(customGroup);
+        diceFragment.appendChild(customGroup);
+        diceGrid.appendChild(diceFragment);
 
         container.appendChild(diceGrid);
 

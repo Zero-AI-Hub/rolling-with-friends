@@ -6,6 +6,7 @@
  */
 
 const HistoryPanel = (() => {
+    'use strict';
     /**
      * Render the history panel.
      * @param {HTMLElement} container

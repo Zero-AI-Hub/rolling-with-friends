@@ -100,8 +100,7 @@ document.addEventListener('DOMContentLoaded', () => {
             state = GameState.create(roomName, dmNick, dmAvatar);
         }
 
-        // DM's own table for dice rolls
-        if (!state.dmTable) state.dmTable = [];
+        // DM's own table for dice rolls is now part of GameState.create
 
         startGame();
     }
@@ -123,7 +122,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const player = state.players[peerId];
                 if (player) {
                     console.log(`[DM] Player disconnected: ${player.nick}`);
-                    GameState.removePlayer(state, peerId);
+                    GameState.disconnectPlayer(state, peerId);
                     Storage.saveState(roomName, state);
                     host.broadcast(Protocol.createPlayerLeft(peerId, player.nick));
                     broadcastPlayerList();
@@ -168,17 +167,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const nick = msg.nick || 'Player';
             const avatarData = msg.avatarData;
 
-            // Enforce unique nicknames: reject if a connected player has the same nick
-            for (const [existingId, existingPlayer] of Object.entries(state.players)) {
-                if (existingPlayer.nick === nick && existingPlayer.connected && existingId !== peerId) {
-                    console.log(`[DM] Rejected player: nick "${nick}" already taken by ${existingId}`);
-                    host.sendTo(peerId, Protocol.createNickTaken(nick));
-                    return;
-                }
-            }
-            // Also check against DM nick
-            if (nick === dmNick) {
-                console.log(`[DM] Rejected player: nick "${nick}" is the DM's nick`);
+            // Enforce unique nicknames
+            if (GameState.isNickTaken(state, nick, peerId)) {
+                console.log(`[DM] Rejected player: nick "${nick}" already taken`);
                 host.sendTo(peerId, Protocol.createNickTaken(nick));
                 return;
             }
@@ -274,16 +265,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const nick = msg.nick || 'Player';
 
             // Enforce unique nicknames
-            for (const [existingId, existingPlayer] of Object.entries(state.players)) {
-                if (existingPlayer.nick === nick && existingPlayer.connected && existingId !== peerId) {
-                    console.log(`[DM] Rejected profile update: nick "${nick}" already taken by ${existingId}`);
-                    host.sendTo(peerId, Protocol.createProfileUpdateRejected(nick));
-                    return;
-                }
-            }
-            // Check against DM nick
-            if (nick === dmNick && peerId !== 'dm') {
-                console.log(`[DM] Rejected profile update: nick "${nick}" is the DM's nick`);
+            if (GameState.isNickTaken(state, nick, peerId)) {
+                console.log(`[DM] Rejected profile update: nick "${nick}" already taken`);
                 host.sendTo(peerId, Protocol.createProfileUpdateRejected(nick));
                 return;
             }
@@ -308,20 +291,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 targets
             );
 
-            // Add DM roll to DM table (merge or create new)
-            if (dmAutoclear || state.dmTable.length === 0) {
-                if (dmAutoclear) {
-                    state.dmTable = [];
-                    // Fix: Tell all players to clear the DM's table so they don't append
-                    host.broadcast(Protocol.createTableCleared('dm'));
-                }
-                state.dmTable = [Object.assign({}, rollResult, { dice: rollResult.dice.slice() })];
-            } else {
-                const existing = state.dmTable[0];
-                existing.dice = existing.dice.concat(rollResult.dice);
-                existing.total += rollResult.total;
-                existing.timestamp = rollResult.timestamp || Date.now();
+            // Broadcast table clear if autoclear
+            if (dmAutoclear) {
+                host.broadcast(Protocol.createTableCleared('dm'));
             }
+
+            // Add to DM table via consolidated GameState function
+            GameState.addDmTableRoll(state, rollResult, dmAutoclear);
 
             // Add to history (individual roll)
             GameState.addDmRoll(state, rollResult);
@@ -360,10 +336,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (peerId === null) {
                 // Clear all
                 GameState.clearTable(state, null);
-                state.dmTable = [];
+                GameState.clearDmTable(state);
                 host.broadcast(Protocol.createTableCleared(null));
             } else if (peerId === 'dm') {
-                state.dmTable = [];
+                GameState.clearDmTable(state);
                 host.broadcast(Protocol.createTableCleared('dm'));
             } else {
                 GameState.clearTable(state, peerId);
@@ -451,11 +427,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 keepQueue: dmKeepQueue,
                 onSave: (newNick, newAvatar) => {
                     // Check local uniqueness first
-                    for (const [existingId, existingPlayer] of Object.entries(state.players)) {
-                        if (existingPlayer.nick === newNick && existingPlayer.connected) {
-                            alert(`The nickname "${newNick}" is already taken by a player.`);
-                            return;
-                        }
+                    if (GameState.isNickTaken(state, newNick, 'dm')) {
+                        alert(`The nickname "${newNick}" is already taken by a player.`);
+                        return;
                     }
 
                     dmNick = newNick;

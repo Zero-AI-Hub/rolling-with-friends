@@ -6,6 +6,7 @@
  */
 
 const Storage = (() => {
+    'use strict';
     const STORAGE_PREFIX = 'dice-online-';
     let saveTimeout = null;
 

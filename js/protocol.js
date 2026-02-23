@@ -6,6 +6,12 @@
  */
 
 const Protocol = (() => {
+    'use strict';
+
+    // Limits to prevent abuse
+    const MAX_DICE_PER_GROUP = 100;
+    const MAX_DICE_GROUPS = 20;
+
     // Message types
     const MSG = Object.freeze({
         // Player → DM
@@ -166,6 +172,7 @@ const Protocol = (() => {
     // --- Validation ---
 
     const VALID_MSG_TYPES = new Set(Object.values(MSG));
+    const VALID_VISIBILITY = new Set(Object.values(VISIBILITY));
 
     function isValidMessage(msg) {
         if (!msg || typeof msg !== 'object') return false;
@@ -174,10 +181,11 @@ const Protocol = (() => {
     }
 
     function isValidDiceSpec(dice) {
-        if (!Array.isArray(dice) || dice.length === 0) return false;
+        if (!Array.isArray(dice) || dice.length === 0 || dice.length > MAX_DICE_GROUPS) return false;
         return dice.every(d =>
             d && typeof d.sides === 'number' && d.sides >= 2 &&
             typeof d.count === 'number' && d.count >= 1 &&
+            d.count <= MAX_DICE_PER_GROUP &&
             Number.isInteger(d.sides) && Number.isInteger(d.count)
         );
     }
@@ -185,7 +193,7 @@ const Protocol = (() => {
     function isValidRollRequest(msg) {
         if (msg.type !== MSG.ROLL_REQUEST) return false;
         if (!isValidDiceSpec(msg.dice)) return false;
-        if (!Object.values(VISIBILITY).includes(msg.visibility)) return false;
+        if (!VALID_VISIBILITY.has(msg.visibility)) return false;
         return true;
     }
 
@@ -193,6 +201,8 @@ const Protocol = (() => {
     return {
         MSG,
         VISIBILITY,
+        MAX_DICE_PER_GROUP,
+        MAX_DICE_GROUPS,
         createPlayerInfo,
         createRollRequest,
         createRollResult,

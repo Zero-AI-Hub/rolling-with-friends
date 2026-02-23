@@ -6,6 +6,7 @@
  */
 
 const Dice = (() => {
+    'use strict';
     /**
      * Roll a single die with the given number of sides.
      * @param {number} sides - Number of sides (>= 2)

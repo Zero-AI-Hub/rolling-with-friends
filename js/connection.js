@@ -8,6 +8,7 @@
  */
 
 const Connection = (() => {
+    'use strict';
     const PEER_PREFIX = 'dice-online-';
     const RECONNECT_DELAY_MS = 2000;
     const MAX_RECONNECT_ATTEMPTS = 10;

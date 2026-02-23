@@ -1,8 +1,9 @@
 // --- index.js: Lobby Logic ---
-let dmAvatar = 'builtin:0';
-let playerAvatar = 'builtin:0';
-
 document.addEventListener('DOMContentLoaded', () => {
+    'use strict';
+
+    let dmAvatar = 'builtin:0';
+    let playerAvatar = 'builtin:0';
     // Render avatar pickers
     AvatarPicker.render(
         document.getElementById('dm-avatar-picker'),

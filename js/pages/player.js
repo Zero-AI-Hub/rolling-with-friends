@@ -183,9 +183,7 @@ document.addEventListener('DOMContentLoaded', () => {
             existing.timestamp = rollResult.timestamp || Date.now();
             return [existing];
         } else {
-            return [Object.assign({}, rollResult, {
-                dice: rollResult.dice.slice(),
-            })];
+            return [{ ...rollResult, dice: rollResult.dice.slice() }];
         }
     }
 

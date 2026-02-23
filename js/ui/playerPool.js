@@ -6,6 +6,7 @@
  */
 
 const PlayerPool = (() => {
+    'use strict';
     /**
      * Render the player pool area.
      * @param {HTMLElement} container

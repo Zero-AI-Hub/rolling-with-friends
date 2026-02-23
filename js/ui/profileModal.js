@@ -6,6 +6,7 @@
  */
 
 const ProfileModal = (() => {
+    'use strict';
     /**
      * Show the settings modal.
      * @param {object} config

@@ -6,6 +6,7 @@
  */
 
 const DmPanel = (() => {
+    'use strict';
     /**
      * Render the DM management panel.
      * @param {HTMLElement} container
@@ -43,7 +44,7 @@ const DmPanel = (() => {
         const roomInfo = document.createElement('div');
         roomInfo.className = 'dm-room-info';
         roomInfo.innerHTML = `
-            <div class="info-row"><span class="info-label">Room:</span> <span class="info-value">${escapeHtml(state.roomName)}</span></div>
+            <div class="info-row"><span class="info-label">Room:</span> <span class="info-value">${UIHelpers.escapeHTML(state.roomName)}</span></div>
             <div class="info-row"><span class="info-label">Players:</span> <span class="info-value">${Object.values(state.players).filter(p => p.connected).length} / ${Object.keys(state.players).length}</span></div>
         `;
         container.appendChild(roomInfo);
@@ -63,6 +64,7 @@ const DmPanel = (() => {
             empty.textContent = 'No players have joined yet.';
             playerList.appendChild(empty);
         } else {
+            const fragment = document.createDocumentFragment();
             players.forEach(([peerId, player]) => {
                 const row = document.createElement('div');
                 row.className = 'dm-player-row';
@@ -114,8 +116,9 @@ const DmPanel = (() => {
                 actions.appendChild(kickBtn);
 
                 row.appendChild(actions);
-                playerList.appendChild(row);
+                fragment.appendChild(row);
             });
+            playerList.appendChild(fragment);
         }
 
         container.appendChild(playerList);
@@ -167,12 +170,6 @@ const DmPanel = (() => {
         panelElement._toggleBtn = btn;
 
         return btn;
-    }
-
-    function escapeHtml(str) {
-        const div = document.createElement('div');
-        div.textContent = str;
-        return div.innerHTML;
     }
 
     return {

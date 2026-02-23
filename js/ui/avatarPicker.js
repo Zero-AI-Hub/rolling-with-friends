@@ -6,6 +6,7 @@
  */
 
 const AvatarPicker = (() => {
+    'use strict';
     // Built-in avatar definitions (emoji-based for zero dependencies)
     const BUILT_IN_AVATARS = [
         { emoji: '⚔️', label: 'Warrior', bg: '#8B0000' },
@@ -150,8 +151,8 @@ const AvatarPicker = (() => {
 
         if (avatarData.startsWith('builtin:')) {
             const idx = parseInt(avatarData.split(':')[1], 10);
-            const avatar = BUILT_IN_AVATARS[idx];
-            if (avatar) {
+            if (idx >= 0 && idx < BUILT_IN_AVATARS.length) {
+                const avatar = BUILT_IN_AVATARS[idx];
                 element.textContent = avatar.emoji;
                 element.style.backgroundColor = avatar.bg;
                 element.style.backgroundImage = '';

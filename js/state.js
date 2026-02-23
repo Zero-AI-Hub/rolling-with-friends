@@ -7,6 +7,9 @@
  */
 
 const GameState = (() => {
+    'use strict';
+
+    const MAX_HISTORY = 500;
     /**
      * Create a new empty game state.
      * @param {string} roomName
@@ -20,6 +23,7 @@ const GameState = (() => {
             dmNick,
             dmAvatar,
             dmPeerId: null,
+            dmTable: [],  // DM's own dice table
             players: {},   // { peerId: { nick, avatarData, connected, table: [], autoclear: false } }
             history: [],   // [{ playerId, nick, dice, total, visibility, targets, timestamp }]
             createdAt: Date.now(),
@@ -85,8 +89,11 @@ const GameState = (() => {
         const player = state.players[peerId];
         if (!player) return state;
 
-        // Always record individual roll in history
+        // Always record individual roll in history (capped)
         state.history.push(rollResult);
+        if (state.history.length > MAX_HISTORY) {
+            state.history = state.history.slice(-MAX_HISTORY);
+        }
 
         // Merge into existing table entry, or create new if empty
         if (player.table.length > 0) {
@@ -95,9 +102,7 @@ const GameState = (() => {
             existing.total += rollResult.total;
             existing.timestamp = rollResult.timestamp || Date.now();
         } else {
-            player.table = [Object.assign({}, rollResult, {
-                dice: rollResult.dice.slice(),
-            })];
+            player.table = [{ ...rollResult, dice: rollResult.dice.slice() }];
         }
 
         return state;
@@ -108,6 +113,35 @@ const GameState = (() => {
      */
     function addDmRoll(state, rollResult) {
         state.history.push(rollResult);
+        if (state.history.length > MAX_HISTORY) {
+            state.history = state.history.slice(-MAX_HISTORY);
+        }
+        return state;
+    }
+
+    /**
+     * Add a DM roll to the DM's table (with optional autoclear).
+     */
+    function addDmTableRoll(state, rollResult, autoclear) {
+        if (autoclear || state.dmTable.length === 0) {
+            if (autoclear) {
+                state.dmTable = [];
+            }
+            state.dmTable = [{ ...rollResult, dice: rollResult.dice.slice() }];
+        } else {
+            const existing = state.dmTable[0];
+            existing.dice = existing.dice.concat(rollResult.dice);
+            existing.total += rollResult.total;
+            existing.timestamp = rollResult.timestamp || Date.now();
+        }
+        return state;
+    }
+
+    /**
+     * Clear the DM's table.
+     */
+    function clearDmTable(state) {
+        state.dmTable = [];
         return state;
     }
 
@@ -146,6 +180,25 @@ const GameState = (() => {
     function clearHistory(state) {
         state.history = [];
         return state;
+    }
+
+    /**
+     * Check if a nickname is already taken in the room.
+     * @param {object} state
+     * @param {string} nick
+     * @param {string|null} excludePeerId — peer ID to exclude (for self-updates)
+     * @returns {boolean}
+     */
+    function isNickTaken(state, nick, excludePeerId) {
+        // Check DM nick
+        if (nick === state.dmNick && excludePeerId !== 'dm') return true;
+        // Check connected players
+        for (const [id, player] of Object.entries(state.players)) {
+            if (player.nick === nick && player.connected && id !== excludePeerId) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -238,6 +291,7 @@ const GameState = (() => {
     }
 
     return {
+        MAX_HISTORY,
         create,
         addPlayer,
         removePlayer,
@@ -245,8 +299,11 @@ const GameState = (() => {
         reconnectPlayer,
         addRoll,
         addDmRoll,
+        addDmTableRoll,
+        clearDmTable,
         clearTable,
         clearHistory,
+        isNickTaken,
         setAutoclear,
         getPlayerList,
         toJSON,

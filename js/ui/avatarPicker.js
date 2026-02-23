@@ -90,6 +90,9 @@ const AvatarPicker = (() => {
                 onSelect(dataUrl);
             } catch (err) {
                 console.error('Failed to process image:', err);
+            } finally {
+                // Reset so the same file can be selected again
+                fileInput.value = '';
             }
         });
 

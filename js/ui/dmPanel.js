@@ -308,7 +308,26 @@ const DmPanel = (() => {
         if (fragment.children.length > 0) {
             listContent.appendChild(fragment);
         }
-    }
+
+        // Sync settings inputs with current state
+        const settings = state.settings || {};
+        const critHitInput = container.querySelector('#dm-set-crithit');
+        const critFailInput = container.querySelector('#dm-set-critfail');
+        const autoclearInput = container.querySelector('#dm-set-autoclear');
+        const notifyInput = container.querySelector('#dm-set-notify');
+        if (critHitInput && document.activeElement !== critHitInput) {
+            critHitInput.value = settings.critHit !== undefined ? settings.critHit : 20;
+        }
+        if (critFailInput && document.activeElement !== critFailInput) {
+            critFailInput.value = settings.critFail !== undefined ? settings.critFail : 1;
+        }
+        if (autoclearInput && document.activeElement !== autoclearInput) {
+            autoclearInput.value = settings.autoclearSeconds !== undefined ? settings.autoclearSeconds : 0;
+        }
+        if (notifyInput) {
+            notifyInput.checked = !!settings.notifyHidden;
+        }
+    } // end update()
 
     /**
      * Render entry point for backward compatibility.

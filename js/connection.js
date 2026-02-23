@@ -61,12 +61,14 @@ const Connection = (() => {
 
             peer.on('error', (err) => {
                 console.error('[DM] Peer error:', err);
-                if (callbacks.onError) callbacks.onError(err);
 
-                // If the ID is taken, the room name is already in use
+                // If the ID is taken, the room name is already in use — send a clear message
                 if (err.type === 'unavailable-id') {
                     if (callbacks.onError) callbacks.onError(new Error('Room name already in use. Try a different name or reload to reclaim your room.'));
+                    return;
                 }
+
+                if (callbacks.onError) callbacks.onError(err);
             });
 
             peer.on('disconnected', () => {

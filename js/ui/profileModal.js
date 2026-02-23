@@ -113,6 +113,18 @@ const ProfileModal = (() => {
             }
         });
 
+        // Close on Escape key
+        function onKeyDown(e) {
+            if (e.key === 'Escape') {
+                close();
+                document.removeEventListener('keydown', onKeyDown);
+            }
+        }
+        document.addEventListener('keydown', onKeyDown);
+
+        // Clean up listener when overlay is removed via other means
+        overlay.addEventListener('remove', () => document.removeEventListener('keydown', onKeyDown));
+
         nickInput.focus();
         nickInput.select();
     }

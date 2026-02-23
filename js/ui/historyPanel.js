@@ -102,13 +102,13 @@ const HistoryPanel = (() => {
         const newRolls = document.createDocumentFragment();
 
         // Items are pushed to the end of history array.
-        // We want newest first in the UI, so we prepend them.
+        // We want newest first in the UI, so we iterate in reverse and prepend.
+        // Iterating in reverse ensures the last added item ends up at the top.
         const settings = options.state ? options.state.settings : { critHit: 20, critFail: 1 };
-        for (let i = container._renderedHistoryCount; i < history.length; i++) {
+        for (let i = history.length - 1; i >= container._renderedHistoryCount; i--) {
             const roll = history[i];
             const entry = createHistoryEntry(roll, settings);
-            // Prepend new rolls to the top
-            newRolls.prepend(entry);
+            newRolls.appendChild(entry);
         }
 
         list.prepend(newRolls);

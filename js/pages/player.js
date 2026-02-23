@@ -155,19 +155,6 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (localState.players[playerId]) {
             const player = localState.players[playerId];
             player.table = mergeIntoTable(player.table || [], msg);
-        } else if (playerId === myPeerId) {
-            // It's my own roll — create entry if needed
-            if (!localState.players[myPeerId]) {
-                localState.players[myPeerId] = {
-                    nick: myNick,
-                    avatarData: myAvatar,
-                    connected: true,
-                    table: [],
-                };
-            }
-            localState.players[myPeerId].table = mergeIntoTable(
-                localState.players[myPeerId].table, msg
-            );
         }
 
         // Add individual roll to history

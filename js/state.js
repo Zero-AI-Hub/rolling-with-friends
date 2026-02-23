@@ -267,6 +267,7 @@ const GameState = (() => {
             dmNick: json.dmNick || 'DM',
             dmAvatar: json.dmAvatar || null,
             dmPeerId: json.dmPeerId || null,
+            dmTable: json.dmTable || [],
             players: json.players || {},
             history: json.history || [],
             settings: json.settings || {

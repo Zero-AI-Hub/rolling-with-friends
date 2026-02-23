@@ -168,6 +168,18 @@
             expect(restored.history).toHaveLength(1);
         });
 
+        it('should preserve dmTable on round-trip', () => {
+            const s = State.create('room', 'DM', null);
+            const roll = { dice: [{ sides: 20, count: 1, results: [15] }], total: 15, visibility: 'PUBLIC' };
+            State.addDmTableRoll(s, roll, false);
+
+            const json = State.toJSON(s);
+            const restored = State.fromJSON(json);
+
+            expect(restored.dmTable).toHaveLength(1);
+            expect(restored.dmTable[0].total).toBe(15);
+        });
+
         it('should handle string input', () => {
             const s = State.create('room', 'DM', null);
             const jsonStr = JSON.stringify(State.toJSON(s));

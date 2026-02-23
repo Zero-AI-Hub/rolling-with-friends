@@ -31,7 +31,7 @@ const DiceRoller = (() => {
     function init(container, options) {
         state.container = container;
 
-        if (state.initialized) {
+        if (container._diceRollerInitialized) {
             update(container, options);
             return;
         }
@@ -219,14 +219,15 @@ const DiceRoller = (() => {
             }
 
             const diceSpec = state.rollQueue.map(d => ({ sides: d.sides, count: d.count }));
-            const currentOptions = container._diceRollerOptions || options;
+            // Always read options from the container to avoid stale closure references
+            const currentOptions = container._diceRollerOptions;
 
-            if (currentOptions.onRoll) {
+            if (currentOptions && currentOptions.onRoll) {
                 currentOptions.onRoll(diceSpec, visibility, targets);
             }
 
             // Clear queue after rolling (unless "keep queue" is enabled)
-            if (!currentOptions.keepQueue) {
+            if (!currentOptions || !currentOptions.keepQueue) {
                 state.rollQueue.length = 0;
                 updateQueueDisplay(queueDisplay);
                 notifyStateChange();
@@ -236,7 +237,7 @@ const DiceRoller = (() => {
         controls.appendChild(rollBtn);
         container.appendChild(controls);
 
-        state.initialized = true;
+        container._diceRollerInitialized = true;
 
         // Initial queue display and targets
         updateQueueDisplay(queueDisplay);
@@ -378,6 +379,7 @@ const DiceRoller = (() => {
             item.addEventListener('click', () => {
                 state.rollQueue.splice(index, 1);
                 updateQueueDisplay(queueDisplay);
+                notifyStateChange();
             });
             queueDisplay.appendChild(item);
         });

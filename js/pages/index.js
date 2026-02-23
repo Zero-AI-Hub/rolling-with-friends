@@ -40,8 +40,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('create-room-btn').addEventListener('click', () => {
         const roomRaw = document.getElementById('dm-room-name').value.trim();
         const nick = document.getElementById('dm-nick').value.trim();
+        const room = sanitizeRoomName(roomRaw);
 
-        if (!roomRaw) {
+        if (!room) {
             document.getElementById('dm-room-name').classList.add('input-error');
             setTimeout(() => document.getElementById('dm-room-name').classList.remove('input-error'), 800);
             return;
@@ -52,7 +53,6 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const room = sanitizeRoomName(roomRaw);
         localStorage.setItem('dice-online-session', JSON.stringify({
             room,
             nick,
@@ -66,8 +66,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('join-room-btn').addEventListener('click', () => {
         const roomRaw = document.getElementById('player-room-name').value.trim();
         const nick = document.getElementById('player-nick').value.trim();
+        const room = sanitizeRoomName(roomRaw);
 
-        if (!roomRaw) {
+        if (!room) {
             document.getElementById('player-room-name').classList.add('input-error');
             setTimeout(() => document.getElementById('player-room-name').classList.remove('input-error'), 800);
             return;
@@ -78,7 +79,6 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const room = sanitizeRoomName(roomRaw);
         localStorage.setItem('dice-online-session', JSON.stringify({
             room,
             nick,

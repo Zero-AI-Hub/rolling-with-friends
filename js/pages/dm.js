@@ -81,24 +81,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let state;
     let dmAutoclear = true; // Default: replace rolls
 
-    let autoclearTimeout = null;
-
-    function resetAutoclearTimeout() {
-        if (autoclearTimeout) {
-            clearTimeout(autoclearTimeout);
-            autoclearTimeout = null;
-        }
-        if (state.settings && state.settings.autoclearSeconds > 0) {
-            autoclearTimeout = setTimeout(() => {
-                // Call clearPlayerTable(null) to wipe all tables
-                // Need to find a way to invoke it securely if it's declared below
-                // Because initSession is at top, maybe we can just re-evaluate state clearing here
-                // Fortunately clearPlayerTable is hoisted by JS context if it's within the same scope, but it's not.
-                // We'll move resetAutoclearTimeout inside startGame()
-            }, state.settings.autoclearSeconds * 1000);
-        }
-    }
-
     async function initSession() {
         const savedState = Storage.loadState(roomName);
         if (savedState && savedState.roomName === roomName) {
